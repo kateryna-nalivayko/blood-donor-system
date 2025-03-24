@@ -53,3 +53,20 @@ class BaseDAO:
             query = select(cls.model).filter_by(id=data_id)
             result = await session.execute(query)
             return result.scalar_one_or_none()
+        
+
+    @classmethod
+    async def find_all(cls, **filter_by):
+        """
+        Asynchronously finds and returns all instances of the model that match the specified criteria.
+
+        Arguments:
+            **filter_by: Filtering criteria in the form of named parameters.
+
+        Returns:
+            A list of model instances.
+        """
+        async with async_session_maker() as session:
+            query = select(cls.model).filter_by(**filter_by)
+            result = await session.execute(query)
+            return result.scalars().all()

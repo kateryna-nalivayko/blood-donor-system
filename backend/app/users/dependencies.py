@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from app.config import get_auth_data
 from app.users.exceptions import TokenExpiredException, NoJwtException, NoUserIdException, ForbiddenException
 from app.users.dao import UsersDAO
+from app.users.models import User
 
 
 def get_token(request: Request):
@@ -34,3 +35,9 @@ async def get_current_user(token: str = Depends(get_token)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Користувач не знайдент')
 
     return user
+
+
+async def get_current_admin_user(current_user: User = Depends(get_current_user)):
+    if current_user.is_admin:
+        return current_user
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Недостатньо прав!')
