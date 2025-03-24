@@ -23,10 +23,6 @@ RUN poetry install --no-interaction --no-ansi --no-root
 # Copy application code
 COPY backend/app ./app
 COPY backend/alembic.ini ./
-# COPY backend/scripts/entrypoint.sh ./entrypoint.sh
-
-# # Make entrypoint executable
-# RUN chmod +x ./entrypoint.sh
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
