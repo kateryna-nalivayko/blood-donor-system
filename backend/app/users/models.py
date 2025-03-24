@@ -22,8 +22,8 @@ class User(Base):
     created_at: Mapped[created_at]
     updated_at: Mapped[updated_at]
 
-    donor_profile: Mapped["Donor"] = relationship("Donor", back_populates="user", uselist=False)
-    hospital_staff_profile: Mapped["HospitalStaff"] = relationship("HospitalStaff", back_populates="user", uselist=False)
+    donor_profile = relationship("Donor", back_populates="user")
+    hospital_staff_profile = relationship("HospitalStaff", back_populates="user")
 
     
     def __repr__(self):

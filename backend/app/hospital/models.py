@@ -26,6 +26,8 @@ class Hospital(Base):
 
     staff: Mapped[List["HospitalStaff"]] = relationship("HospitalStaff", back_populates="hospital")
     blood_requests = relationship("BloodRequest", back_populates="hospital")
+
+    donations: Mapped[List["Donation"]] = relationship("Donation", back_populates="hospital")
     
     def __repr__(self):
         return f"Hospital(id={self.id}, name={self.name})"

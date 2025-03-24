@@ -12,14 +12,15 @@ services:
     env_file:
       - ./.env
     environment:
-      - DB_HOST=${DB_HOST}
+      - DB_HOST=db
       - DB_PORT=${DB_PORT}
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
     volumes:
       - ./backend/app:/app/app
-      - ./backend/scripts:/app/scripts
     restart: unless-stopped
 
   db:

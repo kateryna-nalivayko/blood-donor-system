@@ -23,10 +23,10 @@ RUN poetry install --no-interaction --no-ansi --no-root
 # Copy application code
 COPY backend/app ./app
 COPY backend/alembic.ini ./
-COPY backend/scripts/entrypoint.sh ./entrypoint.sh
+# COPY backend/scripts/entrypoint.sh ./entrypoint.sh
 
-# Make entrypoint executable
-RUN chmod +x ./entrypoint.sh
+# # Make entrypoint executable
+# RUN chmod +x ./entrypoint.sh
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -34,5 +34,4 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-ENTRYPOINT ["./entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
