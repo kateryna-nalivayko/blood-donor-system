@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
 import re
 from typing import Optional
+from enum import Enum 
 
 
 class UserRegister(BaseModel):
@@ -50,3 +51,44 @@ class UserRegister(BaseModel):
 class UserAuth(BaseModel):
     email: EmailStr = Field(..., description="Your email")
     password: str = Field(..., min_length=8, max_length=50, description="Your password (min 8 characters, max 50 characters)")
+
+
+class RoleEnum(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"
+    DONOR = "donor"
+    HOSPITAL_STAFF = "hospital_staff"
+
+
+class RoleUpdate(BaseModel):
+    role: RoleEnum = Field(..., description="The role to set or modify")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "role": "donor"
+            }
+        }
+
+class RoleResponse(BaseModel):
+    message: str = Field(..., description="Response message")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "Role donor added to user with ID 1"
+            }
+        }
+
+class UserRolesResponse(BaseModel):
+    user_id: int = Field(..., description="User ID")
+    roles: list[str] = Field(..., description="List of user's active roles")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "user_id": 1,
+                "roles": ["user", "donor"]
+            }
+        }
