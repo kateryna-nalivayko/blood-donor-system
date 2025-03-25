@@ -52,3 +52,31 @@ class HospitalStaffDAO(BaseDAO):
             await session.refresh(staff)
             
             return staff
+        
+
+@classmethod
+async def update(cls, staff_id: int, **values) -> Optional[HospitalStaff]:
+    """
+    Update a hospital staff profile with the given values.
+    
+    Args:
+        staff_id: ID of the hospital staff profile to update
+        **values: Key-value pairs of fields to update
+        
+    Returns:
+        Updated HospitalStaff instance or None if not found
+    """
+    async with async_session_maker() as session:
+        staff = await session.execute(select(cls.model).filter_by(id=staff_id))
+        staff = staff.scalar_one_or_none()
+        
+        if not staff:
+            return None
+        
+        for key, value in values.items():
+            if hasattr(staff, key):
+                setattr(staff, key, value)
+        
+        await session.commit()
+        await session.refresh(staff)
+        

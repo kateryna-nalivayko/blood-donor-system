@@ -120,8 +120,9 @@ class DonorProfileResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        json_schema_extra = {
+    model_config = {
+        "json_schema_extra":
+         {
             "example": {
                 "id": 1,
                 "user_id": 42,
@@ -142,7 +143,7 @@ class DonorProfileResponse(BaseModel):
                 "updated_at": "2025-03-25T10:30:00"
             }
         }
-        orm_mode = True
+    }
 
 
 class DonorEligibilityResponse(BaseModel):
