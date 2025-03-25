@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.users.router import router as router_users
+from app.donor.router import router as router_donors
 
 
 app = FastAPI(
@@ -17,6 +18,7 @@ async def root():
 
 
 app.include_router(router_users)
+app.include_router(router_donors)
 
 
 if __name__ == "__main__":

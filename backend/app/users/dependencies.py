@@ -42,3 +42,22 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
         return current_user
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
                         detail='Недостатньо прав користувача!')
+
+
+
+async def get_current_hospital_staff(current_user: User = Depends(get_current_user)):
+    if current_user.is_hospital_staff:
+        return current_user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, 
+        detail='Недостатньо прав користувача! Доступ дозволено лише медичному персоналу.'
+    )
+
+def get_admin_or_hospital_staff(current_user: User = Depends(get_current_user)):
+    """Allow access to either admins or hospital staff"""
+    if current_user.is_admin or current_user.is_hospital_staff:
+        return current_user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail='Необхідні права адміністратора або медичного персоналу'
+    )

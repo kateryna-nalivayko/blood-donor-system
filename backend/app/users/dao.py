@@ -3,7 +3,8 @@ from app.users.models import User
 from app.database import async_session_maker
 from typing import Optional
 from sqlalchemy import select
-
+from app.donor.dao import DonorDAO
+from app.hospital_staff.dao import HospitalStaffDAO
 
 class UsersDAO(BaseDAO):
     model = User
@@ -48,10 +49,9 @@ class UsersDAO(BaseDAO):
                     user.is_donor = True
                 elif role_name == "hospital_staff":
                     user.is_hospital_staff = True
-                
 
                 session.add(user)
-                await session.refresh(user)
-                await session.commit()
                 
-                return user
+            await session.refresh(user)
+                
+            return user
