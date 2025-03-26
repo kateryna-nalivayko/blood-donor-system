@@ -5,6 +5,7 @@ from app.users.router import router as router_users
 from app.donor.router import router as router_donors
 from app.hospital_staff.router import router as router_hospitall_staff
 from app.donation.router import router as router_donation
+from app.blood_request.router import router as blood_request_router
 
 app = FastAPI(
     title="Blood Donor System",
@@ -22,6 +23,7 @@ app.include_router(router_users)
 app.include_router(router_donors)
 app.include_router(router_hospitall_staff)
 app.include_router(router_donation)
+app.include_router(blood_request_router)
 
 if __name__ == "__main__":
     import uvicorn

@@ -53,26 +53,29 @@ class BloodRequest(Base):
         return f"BloodRequest(id={self.id}, blood_type={self.blood_type}, status={self.status})"
     
     @property
-    def is_fulfilled(self) -> bool:
-        """Check if the request has been fulfilled."""
-        return self.status == RequestStatus.FULFILLED
-    
-    @property
-    def days_until_needed(self) -> Optional[int]:
-        """Calculate days remaining until blood is needed."""
-        if not self.needed_by_date:
-            return None
-        return (self.needed_by_date - datetime.now()).days
-    
-    @property
     def collected_amount_ml(self) -> int:
-        """Calculate the total amount of blood collected for this request."""
-        return sum(donation.blood_amount_ml for donation in self.donations 
-                  if donation.status == "completed")
+        """Sum of blood collected from completed donations"""
+        if not hasattr(self, 'donations') or self.donations is None:
+            return 0
+        return sum(d.blood_amount_ml for d in self.donations 
+                  if d.status == 'completed')
     
     @property
     def fulfillment_percentage(self) -> float:
-        """Calculate what percentage of the requested blood has been collected."""
-        if self.amount_needed_ml == 0:
-            return 0
+        """Percentage of requested blood that has been collected"""
+        if not self.amount_needed_ml or self.amount_needed_ml == 0:
+            return 0.0
         return min(100.0, (self.collected_amount_ml / self.amount_needed_ml) * 100)
+    
+    @property
+    def days_until_needed(self) -> Optional[int]:
+        """Days until the blood is needed"""
+        if not self.needed_by_date:
+            return None
+        delta = self.needed_by_date - datetime.now()
+        return max(0, delta.days)
+    
+    @property
+    def is_fulfilled(self) -> bool:
+        """Whether the request is considered fulfilled"""
+        return self.status == 'fulfilled' or self.fulfillment_percentage >= 100.0

@@ -7,7 +7,7 @@ from app.donation.dao import DonationDAO
 from app.donor.dao import DonorDAO
 from app.hospital.dao import HospitalDAO
 from app.blood_request.dao import BloodRequestDAO
-from app.users.dependencies import get_current_user, get_current_admin_user, get_admin_or_hospital_staff
+from app.users.dependencies import get_current_user, get_admin_or_hospital_staff
 from app.users.models import User
 
 
