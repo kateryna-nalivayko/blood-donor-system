@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -23,6 +23,7 @@ RUN poetry install --no-interaction --no-ansi --no-root
 # Copy application code
 COPY backend/app ./app
 COPY backend/alembic.ini ./
+COPY frontend ./frontend
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1

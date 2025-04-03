@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Blood Donor System{% endblock %}</title>
+    
+    <!-- Bulma CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar is-danger" role="navigation" aria-label="main navigation">
+        <div class="container">
+            <div class="navbar-brand">
+                <a class="navbar-item has-text-white" href="#">
+                    <strong>Blood Donor System</strong>
+                </a>
+                <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navMenu">
+                    <span aria-hidden="true"></span>
+                    <span aria-hidden="true"></span>
+                    <span aria-hidden="true"></span>
+                </a>
+            </div>
+
+            <div id="navMenu" class="navbar-menu">
+                <div class="navbar-end">
+                    <a class="navbar-item has-text-white" href="#">Donate Blood</a>
+                    <a class="navbar-item has-text-white" href="#">Blood Requests</a>
+                    <a class="navbar-item has-text-white" href="#">Register</a>
+                    <a class="navbar-item has-text-white" href="#">Login</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <section class="section">
+        <div class="container">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer has-background-dark has-text-white">
+        <div class="content has-text-centered">
+            <p>&copy; 2025 Blood Donor System. All Rights Reserved.</p>
+            <p style="font-size: 0.8rem;">Develop & designed with ♥ by Kateryna Nalivayko</p>
+        </div>
+    </footer>
+
+    <script>
+        // Bulma Navbar Toggle
+        document.addEventListener('DOMContentLoaded', () => {
+            const burger = document.querySelector('.navbar-burger');
+            const menu = document.querySelector('.navbar-menu');
+            if (burger && menu) {
+                burger.addEventListener('click', () => {
+                    menu.classList.toggle('is-active');
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>

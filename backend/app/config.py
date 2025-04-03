@@ -1,5 +1,7 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
+from fastapi.templating import Jinja2Templates
 
 
 class Settings(BaseSettings):
@@ -25,3 +27,9 @@ def get_db_url():
 
 def get_auth_data():
     return {"secret_key": settings.SECRET_KEY, "algorithm": settings.ALGORITHM}
+
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
+
+templates = Jinja2Templates(directory=str(FRONTEND_DIR / "templates"))

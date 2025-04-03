@@ -21,6 +21,7 @@ services:
       - ALGORITHM=${ALGORITHM}
     volumes:
       - ./backend/app:/app/app
+      - ./frontend:/app/frontend
     restart: unless-stopped
 
   db:
