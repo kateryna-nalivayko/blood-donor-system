@@ -3,6 +3,7 @@
 {% block title %}Home - Blood Donor System{% endblock %}
 
 {% block content %}
+<!-- Hero Section -->
 <section class="hero is-danger is-bold">
     <div class="hero-body">
         <div class="container has-text-centered">
@@ -12,21 +13,261 @@
     </div>
 </section>
 
+<!-- Call-to-Action Boxes -->
 <div class="columns is-centered mt-5">
+    <!-- Donor Box -->
     <div class="column is-half">
         <div class="box has-text-centered">
+            <span class="icon is-large has-text-danger mb-3">
+                <i class="fas fa-heart fa-2x"></i>
+            </span>
             <h3 class="title is-4">Стати донором</h3>
-            <p>Твоя дотація може зберегти життя. Реєструйся зараз та пусти кров!</p>
-            <a href="#" class="button is-danger is-fullwidth">Пустити кров</a>
+            <p class="mb-4">Твоя дотація може зберегти життя. Реєструйся зараз та пусти кров!</p>
+            
+            {% if not user %}
+                <a href="/pages/register" class="button is-danger is-fullwidth">
+                    <span class="icon"><i class="fas fa-user-plus"></i></span>
+                    <span>Зареєструватися</span>
+                </a>
+            {% elif user.is_donor %}
+                <a href="/pages/donor/dashboard" class="button is-danger is-fullwidth">
+                    <span class="icon"><i class="fas fa-heartbeat"></i></span>
+                    <span>Панель донора</span>
+                </a>
+            {% else %}
+                <a href="/pages/donor-registration" class="button is-danger is-fullwidth">
+                    <span class="icon"><i class="fas fa-heart"></i></span>
+                    <span>Пустити кров</span>
+                </a>
+            {% endif %}
         </div>
     </div>
 
+    <!-- Blood Request Box -->
     <div class="column is-half">
         <div class="box has-text-centered">
+            <span class="icon is-large has-text-danger mb-3">
+                <i class="fas fa-tint fa-2x"></i>
+            </span>
             <h3 class="title is-4">Потрібна кров?</h3>
-            <p>Зроби запит в нашому банку крові.</p>
-            <a href="#" class="button is-danger is-fullwidth">Потрібна кров</a>
+            <p class="mb-4">Зроби запит в нашому банку крові або перегляньте поточні потреби.</p>
+            
+            {% if user and user.is_hospital_staff %}
+                <a href="/pages/hospital_staff/dashboard" class="button is-danger is-fullwidth">
+                    <span class="icon"><i class="fas fa-hospital"></i></span>
+                    <span>Панель лікарні</span>
+                </a>
+            {% else %}
+                <a href="/pages/blood-requests" class="button is-danger is-fullwidth">
+                    <span class="icon"><i class="fas fa-tint"></i></span>
+                    <span>Переглянути запити</span>
+                </a>
+            {% endif %}
         </div>
     </div>
 </div>
+
+<!-- Statistics Section -->
+<section class="section">
+    <div class="container">
+        <h2 class="title has-text-centered has-text-danger mb-6">Наші досягнення</h2>
+        
+        <div class="columns has-text-centered is-multiline">
+            <div class="column is-3">
+                <div class="box has-background-danger-light">
+                    <span class="icon is-large has-text-danger mb-2">
+                        <i class="fas fa-users fa-2x"></i>
+                    </span>
+                    <p class="heading">Зареєстрованих донорів</p>
+                    <p class="title">{{ stats.donor_count|default('0') }}</p>
+                </div>
+            </div>
+            
+            <div class="column is-3">
+                <div class="box has-background-danger-light">
+                    <span class="icon is-large has-text-danger mb-2">
+                        <i class="fas fa-hospital fa-2x"></i>
+                    </span>
+                    <p class="heading">Партнерських лікарень</p>
+                    <p class="title">{{ stats.hospital_count|default('0') }}</p>
+                </div>
+            </div>
+            
+            <div class="column is-3">
+                <div class="box has-background-danger-light">
+                    <span class="icon is-large has-text-danger mb-2">
+                        <i class="fas fa-heartbeat fa-2x"></i>
+                    </span>
+                    <p class="heading">Успішних донацій</p>
+                    <p class="title">{{ stats.donation_count|default('0') }}</p>
+                </div>
+            </div>
+            
+            <div class="column is-3">
+                <div class="box has-background-danger-light">
+                    <span class="icon is-large has-text-danger mb-2">
+                        <i class="fas fa-hand-holding-heart fa-2x"></i>
+                    </span>
+                    <p class="heading">Врятованих життів</p>
+                    <p class="title">{{ stats.lives_saved|default('0') }}</p>
+                </div>
+            </div>
+            
+            <div class="column is-3">
+                <div class="box has-background-danger-light">
+                    <span class="icon is-large has-text-danger mb-2">
+                        <i class="fas fa-tint fa-2x"></i>
+                    </span>
+                    <p class="heading">Літрів крові зібрано</p>
+                    <p class="title">{{ (stats.blood_volume_ml / 1000)|round(1)|default('0') }}</p>
+                </div>
+            </div>
+            
+            <div class="column is-3">
+                <div class="box has-background-danger-light">
+                    <span class="icon is-large has-text-danger mb-2">
+                        <i class="fas fa-exclamation-circle fa-2x"></i>
+                    </span>
+                    <p class="heading">Активних запитів</p>
+                    <p class="title">{{ stats.active_requests|default('0') }}</p>
+                </div>
+            </div>
+            
+            <div class="column is-3">
+                <div class="box has-background-danger-light">
+                    <span class="icon is-large has-text-danger mb-2">
+                        <i class="fas fa-calendar-check fa-2x"></i>
+                    </span>
+                    <p class="heading">Років роботи</p>
+                    <p class="title">{{ "1" }}</p>
+                </div>
+            </div>
+            
+            <div class="column is-3">
+                <div class="box has-background-danger-light">
+                    <span class="icon is-large has-text-danger mb-2">
+                        <i class="fas fa-map-marker-alt fa-2x"></i>
+                    </span>
+                    <p class="heading">Міст присутності</p>
+                    <p class="title">{{ "5" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Information Section -->
+<section class="section has-background-light">
+    <div class="container">
+        <div class="columns is-vcentered">
+            <div class="column">
+                <h2 class="title has-text-danger">Про донорство крові</h2>
+                <p class="subtitle">Чому це важливо?</p>
+                
+                <div class="content">
+                    <p>Донорство крові рятує життя мільйонів людей щороку. Особливо воно необхідне для:</p>
+                    <ul>
+                        <li>Пацієнтів, які перенесли важкі операції</li>
+                        <li>Людей з травмами після аварій</li>
+                        <li>Пацієнтів з онкологічними захворюваннями</li>
+                        <li>Породіль з ускладненнями</li>
+                        <li>Людей з хронічними захворюваннями крові</li>
+                    </ul>
+                    
+                    <p>Станьте донором сьогодні та врятуйте життя!</p>
+                    
+                    {% if not user %}
+                    <a href="/pages/register" class="button is-danger mt-3">
+                        <span class="icon"><i class="fas fa-user-plus"></i></span>
+                        <span>Реєструйся зараз</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="column">
+                <figure class="image">
+                    <img src="/static/images/donation.png" alt="Blood donation" onerror="this.src='https://bulma.io/images/placeholders/800x600.png'">
+                </figure>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Blood Type Information -->
+<section class="section">
+    <div class="container">
+        <h2 class="title has-text-centered has-text-danger mb-6">Групи крові та сумісність</h2>
+        
+        <div class="columns is-multiline">
+            <div class="column is-6">
+                <div class="card">
+                    <header class="card-header">
+                        <p class="card-header-title has-background-danger has-text-white">
+                            Перша група (0)
+                        </p>
+                    </header>
+                    <div class="card-content">
+                        <div class="content">
+                            <p><strong>Універсальний донор.</strong> Першу групу крові можуть отримати пацієнти з будь-якою групою.</p>
+                            <p><strong>Може віддавати:</strong> Всім групам</p>
+                            <p><strong>Може отримувати:</strong> Тільки від першої групи (0)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column is-6">
+                <div class="card">
+                    <header class="card-header">
+                        <p class="card-header-title has-background-danger has-text-white">
+                            Друга група (A)
+                        </p>
+                    </header>
+                    <div class="card-content">
+                        <div class="content">
+                            <p>Друга група є однією з найпоширеніших груп крові.</p>
+                            <p><strong>Може віддавати:</strong> Другій (A) та четвертій (AB) групам</p>
+                            <p><strong>Може отримувати:</strong> Від першої (0) та другої (A) групи</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column is-6">
+                <div class="card">
+                    <header class="card-header">
+                        <p class="card-header-title has-background-danger has-text-white">
+                            Третя група (B)
+                        </p>
+                    </header>
+                    <div class="card-content">
+                        <div class="content">
+                            <p>Третя група є менш поширеною в порівнянні з іншими.</p>
+                            <p><strong>Може віддавати:</strong> Третій (B) та четвертій (AB) групам</p>
+                            <p><strong>Може отримувати:</strong> Від першої (0) та третьої (B) групи</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column is-6">
+                <div class="card">
+                    <header class="card-header">
+                        <p class="card-header-title has-background-danger has-text-white">
+                            Четверта група (AB)
+                        </p>
+                    </header>
+                    <div class="card-content">
+                        <div class="content">
+                            <p><strong>Універсальний реципієнт.</strong> Найрідкісніша група крові.</p>
+                            <p><strong>Може віддавати:</strong> Тільки четвертій групі (AB)</p>
+                            <p><strong>Може отримувати:</strong> Від будь-якої групи</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 {% endblock %}

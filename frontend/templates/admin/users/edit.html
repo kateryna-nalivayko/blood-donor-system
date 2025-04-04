@@ -1,0 +1,227 @@
+{# filepath: /Users/admin/Documents/blood-donor-system/frontend/templates/admin/users/edit.html #}
+{% extends "base.html" %}
+
+{% block title %}Редагування користувача - Blood Donor System{% endblock %}
+
+{% block content %}
+<div class="columns">
+  <!-- Sidebar -->
+  <div class="column is-one-quarter">
+    <div class="box">
+      <aside class="menu">
+        <p class="menu-label">Адміністрування</p>
+        <ul class="menu-list">
+          <li><a href="/pages/admin/dashboard">Панель управління</a></li>
+          <li><a href="/pages/admin/users" class="is-active">Користувачі</a></li>
+          <li><a href="/pages/admin/hospitals">Лікарні</a></li>
+        </ul>
+        
+        <p class="menu-label">Профіль</p>
+        <ul class="menu-list">
+          <li><a href="/pages/profile">Мій профіль</a></li>
+          <li><a href="#" onclick="logoutFunction(); return false;" class="has-text-danger">Вийти</a></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="column">
+    <div class="box">
+      <h1 class="title has-text-centered has-text-danger">Редагування користувача</h1>
+      
+      <!-- User Info -->
+      <div class="card mb-5">
+        <div class="card-content">
+          <div class="media">
+            <div class="media-content">
+              <p class="title is-4">{{ edit_user.first_name }} {{ edit_user.last_name }}</p>
+              <p class="subtitle is-6">{{ edit_user.email }}</p>
+            </div>
+          </div>
+          
+          <div class="content">
+            <p><strong>ID:</strong> {{ edit_user.id }}</p>
+            <p><strong>Номер телефону:</strong> {{ edit_user.phone_number }}</p>
+            <p><strong>Дата реєстрації:</strong> {{ edit_user.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Role Management -->
+      <div class="card mb-5">
+        <header class="card-header">
+          <p class="card-header-title">
+            Управління ролями
+          </p>
+        </header>
+        <div class="card-content">
+          <div class="content">
+            <p class="mb-2">Поточні ролі:</p>
+            <div class="tags mb-4">
+              {% if edit_user.is_user %}
+                <span class="tag is-info">Користувач</span>
+              {% endif %}
+              {% if edit_user.is_donor %}
+                <span class="tag is-danger">Донор</span>
+              {% endif %}
+              {% if edit_user.is_hospital_staff %}
+                <span class="tag is-success">Персонал</span>
+              {% endif %}
+              {% if edit_user.is_admin %}
+                <span class="tag is-warning">Адміністратор</span>
+              {% endif %}
+              {% if edit_user.is_super_admin %}
+                <span class="tag is-primary">Супер Адмін</span>
+              {% endif %}
+            </div>
+            
+            <div class="field">
+              <label class="label">Встановити роль</label>
+              <div class="field has-addons">
+                <div class="control">
+                  <div class="select">
+                    <select id="roleSelect">
+                      <option value="donor">Донор</option>
+                      <option value="hospital_staff">Медичний персонал</option>
+                      <option value="admin">Адміністратор</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="control">
+                  <button class="button is-danger" onclick="setUserRole({{ edit_user.id }})">
+                    Встановити роль
+                  </button>
+                </div>
+              </div>
+              <p class="help">Увага! Цей користувач матиме ЛИШЕ вибрану роль (крім базової ролі користувача).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- User Details Edit Form -->
+      <div class="card">
+        <header class="card-header">
+          <p class="card-header-title">
+            Редагування особистих даних
+          </p>
+        </header>
+        <div class="card-content">
+          <div class="content">
+            <form id="editUserForm">
+              <div class="field">
+                <label class="label">Ім'я</label>
+                <div class="control">
+                  <input class="input" type="text" id="firstName" name="first_name" value="{{ edit_user.first_name }}">
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Прізвище</label>
+                <div class="control">
+                  <input class="input" type="text" id="lastName" name="last_name" value="{{ edit_user.last_name }}">
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Email</label>
+                <div class="control">
+                  <input class="input" type="email" id="email" name="email" value="{{ edit_user.email }}">
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Телефон</label>
+                <div class="control">
+                  <input class="input" type="tel" id="phoneNumber" name="phone_number" value="{{ edit_user.phone_number }}">
+                </div>
+              </div>
+              
+              <div class="field mt-5">
+                <div class="control">
+                  <button type="button" class="button is-danger is-fullwidth" onclick="updateUserDetails({{ edit_user.id }})">
+                    Зберегти зміни
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Back button -->
+      <div class="has-text-centered mt-5">
+        <a href="/pages/admin/users" class="button is-light">
+          Повернутися до списку користувачів
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/script.js"></script>
+<script>
+  async function setUserRole(userId) {
+    const roleSelect = document.getElementById('roleSelect');
+    const selectedRole = roleSelect.value;
+    
+    try {
+      const response = await fetch(`/auth/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          role: selectedRole
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert(`Помилка встановлення ролі: ${errorData.detail}`);
+        return;
+      }
+      
+      const result = await response.json();
+      alert(result.message);
+      
+      // Reload the page to reflect changes
+      window.location.reload();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Помилка під час встановлення ролі користувача');
+    }
+  }
+  
+  async function updateUserDetails(userId) {
+    const form = document.getElementById('editUserForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+      const response = await fetch(`/auth/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert(`Помилка оновлення даних: ${errorData.detail}`);
+        return;
+      }
+      
+      alert('Дані користувача успішно оновлено');
+      window.location.reload();
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Помилка під час оновлення даних користувача');
+    }
+  }
+</script>
+{% endblock %}

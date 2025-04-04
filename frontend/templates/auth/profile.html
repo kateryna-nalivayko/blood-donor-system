@@ -1,0 +1,707 @@
+{% extends "base.html" %}
+
+{% block title %}Профіль - Blood Donor System{% endblock %}
+
+{% block head %}
+<style>
+    .role-badge {
+        margin-bottom: 5px;
+    }
+    .dashboard-card {
+        height: 100%;
+        transition: transform 0.3s;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #cc0f35;
+    }
+    .quick-action {
+        transition: all 0.2s;
+    }
+    .quick-action:hover {
+        transform: scale(1.05);
+    }
+    .profile-tabs li.is-active a {
+        color: #cc0f35;
+        border-bottom-color: #cc0f35;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+    <!-- Sidebar -->
+    <div class="column is-one-quarter">
+        <div class="box">
+            <div class="has-text-centered mb-4">
+                <figure class="image is-96x96 is-inline-block">
+                    <img class="is-rounded" src="https://bulma.io/assets/images/placeholders/128x128.png" alt="Profile picture">
+                </figure>
+                <p class="title is-5 mt-2" id="sidebarUserName">Loading...</p>
+                <div id="sidebarRoleArea" class="mt-2">
+                    <!-- Role badges will be inserted here -->
+                </div>
+            </div>
+            
+            <aside class="menu">
+                <p class="menu-label">Профіль</p>
+                <ul class="menu-list">
+                    <li><a class="is-active" href="#profile-overview" onclick="switchTab('profile-overview'); return false;">
+                        <span class="icon"><i class="fas fa-user"></i></span>
+                        <span>Загальна інформація</span>
+                    </a></li>
+                    {% if user.is_donor %}
+                    <li><a href="#donor-section" onclick="switchTab('donor-section'); return false;">
+                        <span class="icon"><i class="fas fa-heartbeat"></i></span>
+                        <span>Донорський профіль</span>
+                    </a></li>
+                    <li><a href="#donation-history" onclick="switchTab('donation-history'); return false;">
+                        <span class="icon"><i class="fas fa-history"></i></span>
+                        <span>Історія донацій</span>
+                    </a></li>
+                    {% endif %}
+                    
+                    {% if user.is_hospital_staff %}
+                    <li><a href="#hospital-section" onclick="switchTab('hospital-section'); return false;">
+                        <span class="icon"><i class="fas fa-hospital"></i></span>
+                        <span>Профіль лікарні</span>
+                    </a></li>
+                    <li><a href="#request-history" onclick="switchTab('request-history'); return false;">
+                        <span class="icon"><i class="fas fa-clipboard-list"></i></span>
+                        <span>Історія запитів</span>
+                    </a></li>
+                    {% endif %}
+                    
+                    {% if user.is_admin or user.is_super_admin %}
+                    <li><a href="#admin-section" onclick="switchTab('admin-section'); return false;">
+                        <span class="icon"><i class="fas fa-shield-alt"></i></span>
+                        <span>Адміністрування</span>
+                    </a></li>
+                    {% endif %}
+                </ul>
+                
+                <p class="menu-label">Налаштування</p>
+                <ul class="menu-list">
+                    <li><a href="#account-settings" onclick="switchTab('account-settings'); return false;">
+                        <span class="icon"><i class="fas fa-cog"></i></span>
+                        <span>Налаштування профілю</span>
+                    </a></li>
+                    <li><a href="#password" onclick="switchTab('password'); return false;">
+                        <span class="icon"><i class="fas fa-key"></i></span>
+                        <span>Безпека</span>
+                    </a></li>
+                </ul>
+                
+                <p class="menu-label">Дії</p>
+                <ul class="menu-list">
+                    <li><a href="#" onclick="logoutFunction(); return false;" class="has-text-danger">
+                        <span class="icon"><i class="fas fa-sign-out-alt"></i></span>
+                        <span>Вийти</span>
+                    </a></li>
+                </ul>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="column">
+        <!-- Profile Overview Section -->
+        <div id="profile-overview" class="tab-content">
+            <div class="box">
+                <div class="level">
+                    <div class="level-left">
+                        <h1 class="title has-text-danger">
+                            <span class="icon"><i class="fas fa-user-circle"></i></span>
+                            <span>Мій профіль</span>
+                        </h1>
+                    </div>
+                    <div class="level-right">
+                        <div class="buttons">
+                            <button class="button is-danger is-light" onclick="switchTab('account-settings');">
+                                <span class="icon"><i class="fas fa-edit"></i></span>
+                                <span>Редагувати</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="columns is-multiline">
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Повне ім'я</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="fullName" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-user"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Email</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="email" id="email" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-envelope"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Номер телефону</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="tel" id="phone" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-phone"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Дата реєстрації</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="createdAt" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="notification is-light has-text-centered mt-4">
+                    <p>Доступ до ролей та функцій залежить від вашого профілю користувача.</p>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <h2 class="subtitle has-text-danger is-4">
+                <span class="icon"><i class="fas fa-bolt"></i></span>
+                <span>Швидкі дії</span>
+            </h2>
+            
+            <div class="columns is-multiline">
+                {% if user.is_donor %}
+                <div class="column is-4">
+                    <a href="/pages/donor-registration" class="box has-text-centered quick-action">
+                        <span class="icon is-large has-text-danger mb-2">
+                            <i class="fas fa-heart fa-2x"></i>
+                        </span>
+                        <p class="heading">Пустити кров</p>
+                        <p>Запланувати нову донацію</p>
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if user.is_hospital_staff %}
+                <div class="column is-4">
+                    <a href="/pages/create-blood-request" class="box has-text-centered quick-action">
+                        <span class="icon is-large has-text-danger mb-2">
+                            <i class="fas fa-tint fa-2x"></i>
+                        </span>
+                        <p class="heading">Запит на кров</p>
+                        <p>Створити новий запит на кров</p>
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if user.is_admin or user.is_super_admin %}
+                <div class="column is-4">
+                    <a href="/pages/admin/dashboard" class="box has-text-centered quick-action">
+                        <span class="icon is-large has-text-danger mb-2">
+                            <i class="fas fa-tachometer-alt fa-2x"></i>
+                        </span>
+                        <p class="heading">Адмін панель</p>
+                        <p>Перейти до адмін панелі</p>
+                    </a>
+                </div>
+                {% endif %}
+                
+                <div class="column is-4">
+                    <a href="/pages/blood-requests" class="box has-text-centered quick-action">
+                        <span class="icon is-large has-text-danger mb-2">
+                            <i class="fas fa-search fa-2x"></i>
+                        </span>
+                        <p class="heading">Пошук запитів</p>
+                        <p>Переглянути відкриті запити</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Donor Section -->
+        <div id="donor-section" class="tab-content" style="display: none;">
+            <div class="box">
+                <h1 class="title has-text-danger">
+                    <span class="icon"><i class="fas fa-heartbeat"></i></span>
+                    <span>Донорський профіль</span>
+                </h1>
+                
+                <div class="columns is-multiline">
+                    <div class="column is-4">
+                        <div class="notification is-danger has-text-centered">
+                            <p class="heading">Група крові</p>
+                            <p class="title" id="bloodType">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-4">
+                        <div class="notification is-danger has-text-centered">
+                            <p class="heading">Загально донацій</p>
+                            <p class="title" id="totalDonations">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-4">
+                        <div class="notification is-danger has-text-centered">
+                            <p class="heading">Статус донора</p>
+                            <p class="title" id="donorStatus">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Дата народження</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="birthDate" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-birthday-cake"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Стать</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="gender" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-venus-mars"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Вага (кг)</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="weight" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-weight"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Зріст (см)</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="height" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-ruler-vertical"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-12">
+                        <div class="field">
+                            <label class="label">Медичні нотатки</label>
+                            <div class="control">
+                                <textarea class="textarea" id="healthNotes" readonly></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="buttons is-centered mt-4">
+                    <a href="/pages/update-donor-profile" class="button is-danger">
+                        <span class="icon"><i class="fas fa-edit"></i></span>
+                        <span>Оновити дані донора</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Donation History Section -->
+        <div id="donation-history" class="tab-content" style="display: none;">
+            <div class="box">
+                <h1 class="title has-text-danger">
+                    <span class="icon"><i class="fas fa-history"></i></span>
+                    <span>Історія донацій</span>
+                </h1>
+                
+                <div class="table-container">
+                    <table class="table is-fullwidth is-hoverable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Дата</th>
+                                <th>Лікарня</th>
+                                <th>Кількість (мл)</th>
+                                <th>Статус</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody id="donationsTableBody">
+                            <!-- Will be populated by JavaScript -->
+                            <tr>
+                                <td colspan="6" class="has-text-centered">Завантаження даних...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="buttons is-centered mt-4">
+                    <a href="/pages/donor-registration" class="button is-danger">
+                        <span class="icon"><i class="fas fa-plus"></i></span>
+                        <span>Нова донація</span>
+                    </a>
+                    <button class="button is-danger is-light" id="downloadDonationHistory">
+                        <span class="icon"><i class="fas fa-download"></i></span>
+                        <span>Завантажити історію</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hospital Staff Section -->
+        <div id="hospital-section" class="tab-content" style="display: none;">
+            <div class="box">
+                <h1 class="title has-text-danger">
+                    <span class="icon"><i class="fas fa-hospital"></i></span>
+                    <span>Профіль лікарні</span>
+                </h1>
+                
+                <div class="columns is-multiline">
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Лікарня</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="hospitalName" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-hospital"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Посада</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="position" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-user-md"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Відділення</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="text" id="department" readonly>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-stethoscope"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-12">
+                        <div class="notification is-warning is-light">
+                            <span class="icon"><i class="fas fa-info-circle"></i></span>
+                            <span>Для зміни даних лікарні, будь ласка, зверніться до адміністратора системи.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="box mt-4">
+                <h2 class="subtitle has-text-danger is-4">
+                    <span class="icon"><i class="fas fa-chart-bar"></i></span>
+                    <span>Статистика лікарні</span>
+                </h2>
+                
+                <div class="columns is-multiline">
+                    <div class="column is-4">
+                        <div class="notification is-danger has-text-centered">
+                            <p class="heading">Активні запити</p>
+                            <p class="title" id="activeRequests">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-4">
+                        <div class="notification is-danger has-text-centered">
+                            <p class="heading">Заплановані донації</p>
+                            <p class="title" id="scheduledDonations">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-4">
+                        <div class="notification is-danger has-text-centered">
+                            <p class="heading">Завершені донації</p>
+                            <p class="title" id="completedDonations">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="buttons is-centered mt-4">
+                    <a href="/pages/create-blood-request" class="button is-danger">
+                        <span class="icon"><i class="fas fa-plus"></i></span>
+                        <span>Новий запит</span>
+                    </a>
+                    <a href="/pages/hospital_staff/dashboard" class="button is-danger is-light">
+                        <span class="icon"><i class="fas fa-tachometer-alt"></i></span>
+                        <span>Панель лікарні</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Request History Section -->
+        <div id="request-history" class="tab-content" style="display: none;">
+            <div class="box">
+                <h1 class="title has-text-danger">
+                    <span class="icon"><i class="fas fa-clipboard-list"></i></span>
+                    <span>Історія запитів</span>
+                </h1>
+                
+                <div class="table-container">
+                    <table class="table is-fullwidth is-hoverable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Дата створення</th>
+                                <th>Група крові</th>
+                                <th>Кількість (мл)</th>
+                                <th>Статус</th>
+                                <th>Донації</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requestsTableBody">
+                            <!-- Will be populated by JavaScript -->
+                            <tr>
+                                <td colspan="7" class="has-text-centered">Завантаження даних...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Admin Section -->
+        <div id="admin-section" class="tab-content" style="display: none;">
+            <div class="box">
+                <h1 class="title has-text-danger">
+                    <span class="icon"><i class="fas fa-shield-alt"></i></span>
+                    <span>Адміністрування</span>
+                </h1>
+                
+                <div class="notification is-warning is-light">
+                    <p>Це короткий огляд адміністративних функцій. Повний набір інструментів доступний на <a href="/pages/admin/dashboard" class="has-text-danger">Панелі адміністратора</a>.</p>
+                </div>
+                
+                <div class="columns is-multiline">
+                    <div class="column is-4">
+                        <div class="box has-text-centered dashboard-card">
+                            <span class="icon is-large has-text-danger mb-2">
+                                <i class="fas fa-users fa-2x"></i>
+                            </span>
+                            <p class="heading">Користувачі</p>
+                            <p class="stat-value" id="totalUsers">?</p>
+                            <a href="/pages/admin/users" class="button is-small is-danger is-light mt-2">Управління</a>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-4">
+                        <div class="box has-text-centered dashboard-card">
+                            <span class="icon is-large has-text-danger mb-2">
+                                <i class="fas fa-hospital fa-2x"></i>
+                            </span>
+                            <p class="heading">Лікарні</p>
+                            <p class="stat-value" id="totalHospitals">?</p>
+                            <a href="/pages/admin/hospitals" class="button is-small is-danger is-light mt-2">Управління</a>
+                        </div>
+                    </div>
+                    
+                    <div class="column is-4">
+                        <div class="box has-text-centered dashboard-card">
+                            <span class="icon is-large has-text-danger mb-2">
+                                <i class="fas fa-tint fa-2x"></i>
+                            </span>
+                            <p class="heading">Запити на кров</p>
+                            <p class="stat-value" id="totalRequests">?</p>
+                            <a href="/pages/admin/blood-requests" class="button is-small is-danger is-light mt-2">Управління</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="buttons is-centered mt-4">
+                    <a href="/pages/admin/dashboard" class="button is-danger">
+                        <span class="icon"><i class="fas fa-tachometer-alt"></i></span>
+                        <span>Перейти до адмін панелі</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Account Settings Section -->
+        <div id="account-settings" class="tab-content" style="display: none;">
+            <div class="box">
+                <h1 class="title has-text-danger">
+                    <span class="icon"><i class="fas fa-cog"></i></span>
+                    <span>Налаштування профілю</span>
+                </h1>
+                
+                <form id="profile-form">
+                    <div class="columns is-multiline">
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Ім'я</label>
+                                <div class="control has-icons-left">
+                                    <input class="input" type="text" name="first_name" id="first_name">
+                                    <span class="icon is-small is-left">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Прізвище</label>
+                                <div class="control has-icons-left">
+                                    <input class="input" type="text" name="last_name" id="last_name">
+                                    <span class="icon is-small is-left">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Email</label>
+                                <div class="control has-icons-left">
+                                    <input class="input" type="email" name="email" id="email_edit">
+                                    <span class="icon is-small is-left">
+                                        <i class="fas fa-envelope"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Номер телефону</label>
+                                <div class="control has-icons-left">
+                                    <input class="input" type="tel" name="phone_number" id="phone_edit" pattern="^\+?380\d{9}$">
+                                    <span class="icon is-small is-left">
+                                        <i class="fas fa-phone"></i>
+                                    </span>
+                                </div>
+                                <p class="help">Format: +380XXXXXXXXX (Ukrainian format)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="field is-grouped is-grouped-centered mt-4">
+                        <div class="control">
+                            <button type="submit" class="button is-danger">
+                                <span class="icon"><i class="fas fa-save"></i></span>
+                                <span>Зберегти зміни</span>
+                            </button>
+                        </div>
+                        <div class="control">
+                            <button type="button" class="button is-light" onclick="switchTab('profile-overview');">
+                                <span class="icon"><i class="fas fa-times"></i></span>
+                                <span>Скасувати</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Password Section -->
+        <div id="password" class="tab-content" style="display: none;">
+            <div class="box">
+                <h1 class="title has-text-danger">
+                    <span class="icon"><i class="fas fa-key"></i></span>
+                    <span>Зміна паролю</span>
+                </h1>
+                
+                <form id="password-form">
+                    <div class="field">
+                        <label class="label">Поточний пароль</label>
+                        <div class="control has-icons-left">
+                            <input class="input" type="password" name="current_password" required>
+                            <span class="icon is-small is-left">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <label class="label">Новий пароль</label>
+                        <div class="control has-icons-left">
+                            <input class="input" type="password" name="new_password" required minlength="8">
+                            <span class="icon is-small is-left">
+                                <i class="fas fa-key"></i>
+                            </span>
+                        </div>
+                        <p class="help">Мінімум 8 символів, включаючи цифри, великі та малі літери</p>
+                    </div>
+                    
+                    <div class="field">
+                        <label class="label">Підтвердження нового паролю</label>
+                        <div class="control has-icons-left">
+                            <input class="input" type="password" name="confirm_password" required minlength="8">
+                            <span class="icon is-small is-left">
+                                <i class="fas fa-check"></i>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="field is-grouped is-grouped-centered mt-4">
+                        <div class="control">
+                            <button type="submit" class="button is-danger">
+                                <span class="icon"><i class="fas fa-save"></i></span>
+                                <span>Змінити пароль</span>
+                            </button>
+                        </div>
+                        <div class="control">
+                            <button type="button" class="button is-light" onclick="switchTab('profile-overview');">
+                                <span class="icon"><i class="fas fa-times"></i></span>
+                                <span>Скасувати</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/script.js"></script>
+<script src="/static/js/auth/profile.js"></script>
+{% endblock %}

@@ -63,7 +63,7 @@ async def create_hospital_staff_profile(
            response_model=HospitalStaffProfileResponse,
            status_code=status.HTTP_200_OK,
            summary="Get my hospital staff profile")
-async def get_my_donor_profile(current_user: User = Depends(get_current_hospital_staff)):
+async def get_my_hospital_staff_profile(current_user: User = Depends(get_current_hospital_staff)):
     """
     Retrieve the hospital staff profile for the currently authenticated user.
     

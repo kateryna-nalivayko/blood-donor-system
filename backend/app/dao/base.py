@@ -19,23 +19,56 @@ class BaseDAO:
     async def add(cls, **values):
         """
         Asynchronously creates a new instance of the model with the specified values.
-
+        
         Arguments:
-            **values: Именованные параметры для создания нового экземпляра модели.
-
+            **values: Named parameters for creating a new instance of the model.
+            
         Returns:
             The created instance of the model.
         """
         async with async_session_maker() as session:
-            async with session.begin():
-                new_instance = cls.model(**values)
-                session.add(new_instance)
-                try:
-                    await session.commit()
-                except SQLAlchemyError as e:
-                    await session.rollback()
-                    raise e
+            # Remove ID if it's being passed manually
+            if 'id' in values:
+                del values['id']
+                
+            new_instance = cls.model(**values)
+            session.add(new_instance)
+            
+            try:
+                # Commit the session to save the new instance
+                await session.commit()
+                
+                # Create a new transaction for the refresh operation
+                # This is outside the previous transaction context
+                await session.refresh(new_instance)
                 return new_instance
+            except SQLAlchemyError as e:
+                await session.rollback()
+                raise e
+
+    @classmethod
+    async def count(cls):
+        """
+        Count total number of records
+        """
+        async with async_session_maker() as session:
+            from sqlalchemy import func
+            query = select(func.count()).select_from(cls.model)
+            result = await session.execute(query)
+            return result.scalar() or 0
+
+
+    @classmethod
+    async def delete(cls, id: int) -> bool:
+        """Delete a record by ID"""
+        async with async_session_maker() as session:
+            obj = await session.get(cls.model, id)
+            if not obj:
+                return False
+            
+            await session.delete(obj)
+            await session.commit()
+            return True
             
 
     @classmethod

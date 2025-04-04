@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Панель адміністратора - Blood Donor System{% endblock %}
+
+{% block head %}
+<style>
+  .stat-card {
+    transition: all 0.3s;
+  }
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(204, 15, 53, 0.1);
+  }
+  .card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #cc0f35;
+  }
+  .card-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+  }
+  .card-label {
+    color: #777;
+    font-size: 1rem;
+  }
+  .action-card {
+    height: 100%;
+    transition: all 0.2s;
+  }
+  .action-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 5px 15px rgba(204, 15, 53, 0.15);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+  <!-- Sidebar -->
+  <div class="column is-one-quarter">
+    <div class="box">
+      <aside class="menu">
+        <p class="menu-label">Адміністрування</p>
+        <ul class="menu-list">
+          <li><a href="/pages/admin/dashboard" class="is-active">Панель управління</a></li>
+          <li><a href="/pages/admin/users">Користувачі</a></li>
+          <li><a href="/pages/admin/hospitals">Лікарні</a></li>
+          <li><a href="/pages/admin/blood-requests">Запити на кров</a></li>
+        </ul>
+        
+        <p class="menu-label">Звіти</p>
+        <ul class="menu-list">
+          <li><a href="/pages/admin/reports/donations">Донації</a></li>
+          <li><a href="/pages/admin/reports/donors">Донори</a></li>
+        </ul>
+        
+        <p class="menu-label">Профіль</p>
+        <ul class="menu-list">
+          <li><a href="/pages/profile">Мій профіль</a></li>
+          <li><a href="#" onclick="logoutFunction(); return false;" class="has-text-danger">Вийти</a></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="column">
+    <!-- Welcome Message -->
+    <div class="box">
+      <h1 class="title has-text-centered has-text-danger">Панель адміністратора</h1>
+      <p class="subtitle has-text-centered">Ласкаво просимо, {{ user.first_name }}! Це ваша панель керування системою.</p>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="columns is-multiline">
+      <div class="column is-3">
+        <div class="box has-background-danger-light has-text-centered stat-card">
+          <span class="icon is-large card-icon">
+            <i class="fas fa-users"></i>
+          </span>
+          <p class="card-value">{{ user_count }}</p>
+          <p class="card-label">Користувачі</p>
+          <a href="/pages/admin/users" class="button is-small is-danger is-light mt-2">Управління</a>
+        </div>
+      </div>
+      
+      <div class="column is-3">
+        <div class="box has-background-danger-light has-text-centered stat-card">
+          <span class="icon is-large card-icon">
+            <i class="fas fa-heart"></i>
+          </span>
+          <p class="card-value">{{ donor_count }}</p>
+          <p class="card-label">Донори</p>
+          <a href="/pages/admin/users?role=donor" class="button is-small is-danger is-light mt-2">Перегляд</a>
+        </div>
+      </div>
+      
+      <div class="column is-3">
+        <div class="box has-background-danger-light has-text-centered stat-card">
+          <span class="icon is-large card-icon">
+            <i class="fas fa-hospital"></i>
+          </span>
+          <p class="card-value">{{ hospital_count }}</p>
+          <p class="card-label">Лікарні</p>
+          <a href="/pages/admin/hospitals" class="button is-small is-danger is-light mt-2">Управління</a>
+        </div>
+      </div>
+      
+      <div class="column is-3">
+        <div class="box has-background-danger-light has-text-centered stat-card">
+          <span class="icon is-large card-icon">
+            <i class="fas fa-tint"></i>
+          </span>
+          <p class="card-value">{{ blood_request_count }}</p>
+          <p class="card-label">Запити на кров</p>
+          <a href="/pages/admin/blood-requests" class="button is-small is-danger is-light mt-2">Перегляд</a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="box">
+      <h2 class="title is-4 has-text-danger">Швидкі дії</h2>
+      <div class="columns is-multiline">
+        <div class="column is-4">
+          <a href="/pages/admin/users/new" class="box has-text-centered action-card">
+            <span class="icon is-large has-text-danger mb-3">
+              <i class="fas fa-user-plus fa-2x"></i>
+            </span>
+            <p class="subtitle is-5">Додати користувача</p>
+            <p class="has-text-grey">Створити новий обліковий запис</p>
+          </a>
+        </div>
+        
+        <div class="column is-4">
+          <a href="/pages/admin/hospitals/create" class="box has-text-centered action-card">
+            <span class="icon is-large has-text-danger mb-3">
+              <i class="fas fa-hospital-alt fa-2x"></i>
+            </span>
+            <p class="subtitle is-5">Додати лікарню</p>
+            <p class="has-text-grey">Зареєструвати нову лікарню</p>
+          </a>
+        </div>
+        
+        <div class="column is-4">
+          <a href="/pages/admin/reports" class="box has-text-centered action-card">
+            <span class="icon is-large has-text-danger mb-3">
+              <i class="fas fa-chart-bar fa-2x"></i>
+            </span>
+            <p class="subtitle is-5">Звіти</p>
+            <p class="has-text-grey">Переглянути детальну статистику</p>
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Recent Users -->
+    <div class="box">
+      <div class="level">
+        <div class="level-left">
+          <h2 class="title is-4 has-text-danger">Нещодавні користувачі</h2>
+        </div>
+        <div class="level-right">
+          <a href="/pages/admin/users" class="button is-danger is-small">
+            <span>Переглянути всіх</span>
+            <span class="icon">
+              <i class="fas fa-arrow-right"></i>
+            </span>
+          </a>
+        </div>
+      </div>
+      
+      <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Ім'я</th>
+              <th>Email</th>
+              <th>Ролі</th>
+              <th>Дата реєстрації</th>
+              <th>Дії</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in recent_users %}
+            <tr>
+              <td>{{ user.id }}</td>
+              <td>{{ user.first_name }} {{ user.last_name }}</td>
+              <td>{{ user.email }}</td>
+              <td>
+                {% if user.is_admin %}<span class="tag is-warning">Адмін</span>{% endif %}
+                {% if user.is_donor %}<span class="tag is-danger">Донор</span>{% endif %}
+                {% if user.is_hospital_staff %}<span class="tag is-success">Персонал</span>{% endif %}
+                {% if not user.is_admin and not user.is_donor and not user.is_hospital_staff %}
+                <span class="tag is-info">Користувач</span>
+                {% endif %}
+              </td>
+              <td>{{ user.created_at.strftime('%d.%m.%Y') }}</td>
+              <td>
+                <div class="buttons are-small">
+                  <a href="/pages/admin/users/{{ user.id }}/edit" class="button is-warning" title="Редагувати">
+                    <span class="icon"><i class="fas fa-edit"></i></span>
+                  </a>
+                  <button class="button is-danger is-outlined" title="Видалити" onclick="confirmDeleteUser({{ user.id }})">
+                    <span class="icon"><i class="fas fa-trash"></i></span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not recent_users %}
+            <tr>
+              <td colspan="6" class="has-text-centered">Немає користувачів у системі</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal" id="deleteUserModal">
+  <div class="modal-background"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Підтвердження видалення</p>
+      <button class="delete" aria-label="close" onclick="closeDeleteModal()"></button>
+    </header>
+    <section class="modal-card-body">
+      <p>Ви впевнені, що хочете видалити цього користувача?</p>
+      <p class="has-text-danger">Ця дія незворотна.</p>
+    </section>
+    <footer class="modal-card-foot">
+      <button class="button is-danger" id="confirmDeleteButton">Видалити</button>
+      <button class="button" onclick="closeDeleteModal()">Скасувати</button>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/script.js"></script>
+<script>
+  let userIdToDelete = null;
+
+  function confirmDeleteUser(userId) {
+    userIdToDelete = userId;
+    document.getElementById('deleteUserModal').classList.add('is-active');
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('deleteUserModal').classList.remove('is-active');
+    userIdToDelete = null;
+  }
+
+  document.getElementById('confirmDeleteButton').addEventListener('click', async function() {
+    if (!userIdToDelete) return;
+
+    try {
+      const response = await fetch(`/auth/users/${userIdToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Success
+        window.location.reload();
+      } else {
+        // Error
+        const errorData = await response.json();
+        alert(errorData.detail || 'Помилка при видаленні користувача');
+        closeDeleteModal();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Сталася помилка при видаленні користувача');
+      closeDeleteModal();
+    }
+  });
+</script>
+{% endblock %}

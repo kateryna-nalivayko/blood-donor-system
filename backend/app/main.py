@@ -9,8 +9,12 @@ from app.donor.router import router as router_donors
 from app.hospital_staff.router import router as router_hospitall_staff
 from app.donation.router import router as router_donation
 from app.blood_request.router import router as blood_request_router
+from app.hospital.router import router as hospital
 
 from app.pages.common import router as common_pages_router
+from app.pages.auth import router as auth_pages_router
+from app.pages.admin import router as admin_pages_router
+
 
 
 app = FastAPI(
@@ -28,8 +32,11 @@ app.include_router(router_donors)
 app.include_router(router_hospitall_staff)
 app.include_router(router_donation)
 app.include_router(blood_request_router)
+app.include_router(hospital)
 
 app.include_router(common_pages_router)
+app.include_router(auth_pages_router)
+app.include_router(admin_pages_router)
 
 if __name__ == "__main__":
     import uvicorn

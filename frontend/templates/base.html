@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,9 @@
     
     <!-- Bulma CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block head %}{% endblock %}
 </head>
 <body>
 
@@ -14,7 +17,7 @@
     <nav class="navbar is-danger" role="navigation" aria-label="main navigation">
         <div class="container">
             <div class="navbar-brand">
-                <a class="navbar-item has-text-white" href="#">
+                <a class="navbar-item has-text-white" href="/">
                     <strong>Blood Donor System</strong>
                 </a>
                 <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navMenu">
@@ -25,11 +28,72 @@
             </div>
 
             <div id="navMenu" class="navbar-menu">
+                <!-- Always visible navigation items -->
+                <div class="navbar-start">
+                    <a class="navbar-item has-text-white" href="/pages/donor-registration">
+                        <span class="icon"><i class="fas fa-heart"></i></span>
+                        <span>Пустити кров</span>
+                    </a>
+                    <a class="navbar-item has-text-white" href="/pages/blood-requests">
+                        <span class="icon"><i class="fas fa-tint"></i></span>
+                        <span>Запит на кров</span>
+                    </a>
+                </div>
+
                 <div class="navbar-end">
-                    <a class="navbar-item has-text-white" href="#">Donate Blood</a>
-                    <a class="navbar-item has-text-white" href="#">Blood Requests</a>
-                    <a class="navbar-item has-text-white" href="#">Register</a>
-                    <a class="navbar-item has-text-white" href="#">Login</a>
+                    {% if user %}
+                        <!-- Logged in users see these menu items -->
+                        <div class="navbar-item has-dropdown is-hoverable">
+                            <a class="navbar-link has-text-white">
+                                <span class="icon"><i class="fas fa-user"></i></span>
+                                <span>{{ user.first_name }}</span>
+                            </a>
+                            
+                            <div class="navbar-dropdown is-right">
+                                <a class="navbar-item" href="/pages/profile">
+                                    <span class="icon"><i class="fas fa-user-circle"></i></span>
+                                    <span>Мій профіль</span>
+                                </a>
+                                
+                                {% if user.is_admin or user.is_super_admin %}
+                                <a class="navbar-item" href="/pages/admin/dashboard">
+                                    <span class="icon"><i class="fas fa-tachometer-alt"></i></span>
+                                    <span>Панель адміністратора</span>
+                                </a>
+                                {% endif %}
+                                
+                                {% if user.is_hospital_staff %}
+                                <a class="navbar-item" href="/pages/hospital_staff/dashboard">
+                                    <span class="icon"><i class="fas fa-hospital"></i></span>
+                                    <span>Панель лікарні</span>
+                                </a>
+                                {% endif %}
+                                
+                                {% if user.is_donor %}
+                                <a class="navbar-item" href="/pages/donor/dashboard">
+                                    <span class="icon"><i class="fas fa-heartbeat"></i></span>
+                                    <span>Панель донора</span>
+                                </a>
+                                {% endif %}
+                                
+                                <hr class="navbar-divider">
+                                <a class="navbar-item has-text-danger" href="#" onclick="logoutFunction(); return false;">
+                                    <span class="icon"><i class="fas fa-sign-out-alt"></i></span>
+                                    <span>Вийти</span>
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Logged out users see these menu items -->
+                        <a class="navbar-item has-text-white" href="/pages/register">
+                            <span class="icon"><i class="fas fa-user-plus"></i></span>
+                            <span>Реєструйся</span>
+                        </a>
+                        <a class="navbar-item has-text-white" href="/pages/login">
+                            <span class="icon"><i class="fas fa-sign-in-alt"></i></span>
+                            <span>Вхід</span>
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -63,6 +127,12 @@
             }
         });
     </script>
+
+    <!-- Common scripts -->
+    <script src="/static/js/script.js"></script>
+    
+    <!-- Page-specific scripts -->
+    {% block scripts %}{% endblock %}
 
 </body>
 </html>

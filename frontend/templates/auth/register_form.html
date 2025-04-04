@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Реєструйся - Blood Donor System{% endblock %}
+
+{% block content %}
+<div class="columns is-centered">
+    <div class="column is-half">
+        <div class="box">
+            <h1 class="title has-text-centered has-text-danger">Створи аккаунт</h1>
+            
+            <form id="registration-form" method="post" onsubmit="regFunction(event); return false;">
+                <div class="field">
+                    <label class="label">Імʼя</label>
+                    <div class="control">
+                        <input class="input" type="text" name="first_name" placeholder="Введіть ваше ім'я" minlength="2" maxlength="50" required>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">Прізвище</label>
+                    <div class="control">
+                        <input class="input" type="text" name="last_name" placeholder="Введіть ваше прізвище" minlength="2" maxlength="50" required>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">Email</label>
+                    <div class="control">
+                        <input class="input" type="email" name="email" placeholder="Введіть ваш email" required>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">Номер телефону</label>
+                    <div class="control">
+                        <input class="input" type="tel" name="phone_number" placeholder="+380XXXXXXXXX" 
+                               pattern="^\+?380\d{9}$" title="Phone number must be in Ukrainian format (+380XXXXXXXXX)" required>
+                        <p class="help">Format: +380XXXXXXXXX (Ukrainian format)</p>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">Пароль</label>
+                    <div class="control">
+                        <input class="input" type="password" name="password" placeholder="Створіть пароль" minlength="8" required>
+                    </div>
+                    <p class="help">Must be at least 8 characters and contain at least one digit, one uppercase and one lowercase letter</p>
+                </div>
+
+                <div class="field mt-4">
+                    <div class="control">
+                        <button type="submit" class="button is-danger is-fullwidth">Зареєструватися</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="has-text-centered mt-4">
+                <p>Вже маєш аккаунт? <a href="/pages/login" class="has-text-danger">Увійти</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/script.js"></script>
+{% endblock %}

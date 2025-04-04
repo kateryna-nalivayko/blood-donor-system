@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Увійти - Blood Donor System{% endblock %}
+
+{% block content %}
+<div class="columns is-centered">
+    <div class="column is-half">
+        <div class="box">
+            <h1 class="title has-text-centered has-text-danger">Увійти в систему</h1>
+            <form id="login-form" method="post" onsubmit="loginFunction(event); return false;">
+                <div class="field">
+                    <label class="label">Email</label>
+                    <div class="control">
+                        <input class="input" type="email" name="email" placeholder="Введіть ваш email" required>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="label">Пароль</label>
+                    <div class="control">
+                        <input class="input" type="password" name="password" placeholder="Введіть ваш пароль" required>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <div class="control">
+                        <label class="checkbox">
+                            <input type="checkbox" name="remember_me">
+                            Запам'ятати мене
+                        </label>
+                    </div>
+                </div>
+
+                <div class="field mt-4">
+                    <div class="control">
+                        <button type="submit" id="login-button" class="button is-danger is-fullwidth">Увійти</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="has-text-centered mt-4">
+                <p>Немає аккаунту? <a href="/pages/register" class="has-text-danger">Зареєструватися</a></p>
+                <p class="mt-2"><a href="#" class="has-text-grey">Забули пароль?</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/script.js"></script>
+{% endblock %}

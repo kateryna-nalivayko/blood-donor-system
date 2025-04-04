@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import Request, HTTPException, status, Depends
 from jose import jwt, JWTError
 from datetime import datetime, timezone
@@ -61,3 +62,32 @@ def get_admin_or_hospital_staff(current_user: User = Depends(get_current_user)):
         status_code=status.HTTP_403_FORBIDDEN,
         detail='Необхідні права адміністратора або медичного персоналу'
     )
+
+
+async def get_current_user_optional(request: Request) -> Optional[User]:
+    """
+    Get the current user if authenticated, or None if not authenticated.
+    Unlike get_current_user, this doesn't raise an exception for anonymous users.
+    """
+    token = request.cookies.get("user_access_token")
+    if not token:
+        return None
+        
+    try:
+        auth_data = get_auth_data()
+        payload = jwt.decode(token, auth_data['secret_key'], algorithms=[auth_data['algorithm']])
+        
+        expire = payload.get('exp')
+        if expire:
+            expire_time = datetime.fromtimestamp(int(expire), tz=timezone.utc)
+            if expire_time < datetime.now(timezone.utc):
+                return None
+                
+        user_id = payload.get('sub')
+        if not user_id:
+            return None
+            
+        user = await UsersDAO.find_one_or_none_by_id(int(user_id))
+        return user
+    except JWTError:
+        return None

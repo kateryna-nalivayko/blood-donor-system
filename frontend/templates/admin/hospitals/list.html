@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Управління лікарнями - Blood Donor System{% endblock %}
+
+{% block content %}
+<div class="columns">
+  <!-- Sidebar -->
+  <div class="column is-one-quarter">
+    <div class="box">
+      <aside class="menu">
+        <p class="menu-label">Адміністрування</p>
+        <ul class="menu-list">
+          <li><a href="/pages/admin/dashboard">Панель управління</a></li>
+          <li><a href="/pages/admin/users">Користувачі</a></li>
+          <li><a href="/pages/admin/hospitals" class="is-active">Лікарні</a></li>
+        </ul>
+        
+        <p class="menu-label">Профіль</p>
+        <ul class="menu-list">
+          <li><a href="/pages/profile">Мій профіль</a></li>
+          <li><a href="#" onclick="logoutFunction(); return false;" class="has-text-danger">Вийти</a></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="column">
+    <div class="box">
+      <div class="level">
+        <div class="level-left">
+          <h1 class="title has-text-danger">Управління лікарнями</h1>
+        </div>
+        <div class="level-right">
+          <a href="/pages/admin/hospitals/create" class="button is-danger">
+            <span class="icon"><i class="fas fa-plus"></i></span>
+            <span>Додати лікарню</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="field has-addons mb-5">
+        <div class="control is-expanded">
+          <input id="searchInput" class="input" type="text" placeholder="Пошук за назвою, містом або регіоном" value="{{ search }}">
+        </div>
+        <div class="control">
+          <button id="searchButton" class="button is-danger">
+            <span class="icon"><i class="fas fa-search"></i></span>
+            <span>Пошук</span>
+          </button>
+        </div>
+        {% if search %}
+        <div class="control">
+          <a href="/pages/admin/hospitals" class="button is-light">
+            <span class="icon"><i class="fas fa-times"></i></span>
+            <span>Очистити</span>
+          </a>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Hospitals Table -->
+      <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Назва</th>
+              <th>Тип</th>
+              <th>Місто</th>
+              <th>Регіон</th>
+              <th>Телефон</th>
+              <th>Дії</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for hospital in hospitals %}
+            <tr>
+              <td>{{ hospital.id }}</td>
+              <td>{{ hospital.name }}</td>
+              <td>{{ hospital.hospital_type }}</td>
+              <td>{{ hospital.city }}</td>
+              <td>{{ hospital.region }}</td>
+              <td>{{ hospital.phone_number }}</td>
+              <td>
+                <div class="buttons are-small">
+                  <a href="/pages/admin/hospitals/{{ hospital.id }}/edit" class="button is-warning">
+                    <span class="icon"><i class="fas fa-edit"></i></span>
+                  </a>
+                  <button class="button is-danger is-outlined" onclick="confirmDeleteHospital({{ hospital.id }})">
+                    <span class="icon"><i class="fas fa-trash"></i></span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+            
+            {% if not hospitals %}
+            <tr>
+              <td colspan="7" class="has-text-centered">
+                {% if search %}
+                Нічого не знайдено за запитом "{{ search }}".
+                {% else %}
+                Лікарні ще не додані.
+                {% endif %}
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if total_pages > 1 %}
+      <nav class="pagination is-centered mt-4" role="navigation" aria-label="pagination">
+        <a href="/pages/admin/hospitals?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}" 
+           class="pagination-previous" {% if page == 1 %}disabled{% endif %}>
+          Попередня
+        </a>
+        <a href="/pages/admin/hospitals?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}" 
+           class="pagination-next" {% if page == total_pages %}disabled{% endif %}>
+          Наступна
+        </a>
+        <ul class="pagination-list">
+          {% for i in range(1, total_pages + 1) %}
+          <li>
+            <a href="/pages/admin/hospitals?page={{ i }}{% if search %}&search={{ search }}{% endif %}" 
+               class="pagination-link {% if i == page %}is-current{% endif %}" 
+               aria-label="Page {{ i }}" aria-current="{% if i == page %}page{% endif %}">
+              {{ i }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Delete Hospital Modal -->
+<div class="modal" id="deleteHospitalModal">
+  <div class="modal-background"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Підтвердження видалення</p>
+      <button class="delete" aria-label="close" onclick="closeDeleteModal()"></button>
+    </header>
+    <section class="modal-card-body">
+      <p>Ви впевнені, що хочете видалити цю лікарню?</p>
+      <p class="has-text-danger">Ця дія незворотна.</p>
+    </section>
+    <footer class="modal-card-foot">
+      <button class="button is-danger" id="confirmDeleteButton">Видалити</button>
+      <button class="button" onclick="closeDeleteModal()">Скасувати</button>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/script.js"></script>
+<script>
+  let hospitalIdToDelete = null;
+
+  // Search functionality
+  document.getElementById('searchButton').addEventListener('click', function() {
+    const searchTerm = document.getElementById('searchInput').value.trim();
+    if (searchTerm) {
+      window.location.href = `/pages/admin/hospitals?search=${encodeURIComponent(searchTerm)}`;
+    } else {
+      window.location.href = '/pages/admin/hospitals';
+    }
+  });
+
+  // Allow search on Enter key
+  document.getElementById('searchInput').addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') {
+      document.getElementById('searchButton').click();
+    }
+  });
+
+  // Hospital deletion
+  function confirmDeleteHospital(hospitalId) {
+    hospitalIdToDelete = hospitalId;
+    document.getElementById('deleteHospitalModal').classList.add('is-active');
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('deleteHospitalModal').classList.remove('is-active');
+    hospitalIdToDelete = null;
+  }
+
+  document.getElementById('confirmDeleteButton').addEventListener('click', async function() {
+    if (!hospitalIdToDelete) return;
+
+    try {
+      const response = await fetch(`/api/hospitals/${hospitalIdToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Success
+        window.location.reload();
+      } else {
+        // Error
+        const errorData = await response.json();
+        alert(errorData.detail || 'Помилка при видаленні лікарні');
+        closeDeleteModal();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Сталася помилка при видаленні лікарні');
+      closeDeleteModal();
+    }
+  });
+</script>
+{% endblock %}

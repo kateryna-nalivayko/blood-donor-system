@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Редагування лікарні - Blood Donor System{% endblock %}
+
+{% block content %}
+<div class="columns">
+  <!-- Sidebar -->
+  <div class="column is-one-quarter">
+    <div class="box">
+      <aside class="menu">
+        <p class="menu-label">Адміністрування</p>
+        <ul class="menu-list">
+          <li><a href="/pages/admin/dashboard">Панель управління</a></li>
+          <li><a href="/pages/admin/users">Користувачі</a></li>
+          <li><a href="/pages/admin/hospitals" class="is-active">Лікарні</a></li>
+        </ul>
+        
+        <p class="menu-label">Профіль</p>
+        <ul class="menu-list">
+          <li><a href="/pages/profile">Мій профіль</a></li>
+          <li><a href="#" onclick="logoutFunction(); return false;" class="has-text-danger">Вийти</a></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="column">
+    <div class="box">
+      <div class="level">
+        <div class="level-left">
+          <h1 class="title has-text-danger">Редагування лікарні</h1>
+        </div>
+        <div class="level-right">
+          <a href="/pages/admin/hospitals" class="button is-light">
+            <span class="icon"><i class="fas fa-arrow-left"></i></span>
+            <span>Назад до списку</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Hospital Stats -->
+      <div class="columns is-multiline mb-5">
+        <div class="column is-one-third">
+          <div class="notification is-danger has-text-centered">
+            <p class="heading">Персонал</p>
+            <p class="title">{{ stats.staff_count }}</p>
+          </div>
+        </div>
+        <div class="column is-one-third">
+          <div class="notification is-danger has-text-centered">
+            <p class="heading">Активні запити</p>
+            <p class="title">{{ stats.active_requests }}</p>
+          </div>
+        </div>
+        <div class="column is-one-third">
+          <div class="notification is-danger has-text-centered">
+            <p class="heading">Заплановані донації</p>
+            <p class="title">{{ stats.scheduled_donations }}</p>
+          </div>
+        </div>
+      </div>
+
+      <form id="hospital-form" data-hospital-id="{{ hospital.id }}">
+        <!-- Basic Information -->
+        <div class="field">
+          <label class="label">Назва лікарні *</label>
+          <div class="control">
+            <input class="input" type="text" name="name" required minlength="2" maxlength="100" value="{{ hospital.name }}">
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label">Тип лікарні</label>
+          <div class="control">
+            <div class="select is-fullwidth">
+              <select name="hospital_type">
+                {% for type in hospital_types %}
+                <option value="{{ type }}" {% if type == hospital.hospital_type %}selected{% endif %}>{{ type }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Information -->
+        <div class="columns">
+          <div class="column">
+            <div class="field">
+              <label class="label">Адреса</label>
+              <div class="control">
+                <input class="input" type="text" name="address" value="{{ hospital.address or '' }}" placeholder="Повна адреса">
+              </div>
+            </div>
+          </div>
+          <div class="column">
+            <div class="field">
+              <label class="label">Місто</label>
+              <div class="control">
+                <input class="input" type="text" name="city" value="{{ hospital.city or '' }}" placeholder="Місто">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="columns">
+          <div class="column">
+            <div class="field">
+              <label class="label">Регіон/область</label>
+              <div class="control">
+                <input class="input" type="text" name="region" value="{{ hospital.region or '' }}" placeholder="Регіон або область">
+              </div>
+            </div>
+          </div>
+          <div class="column">
+            <div class="field">
+              <label class="label">Країна</label>
+              <div class="control">
+                <input class="input" type="text" name="country" value="{{ hospital.country }}" placeholder="Країна">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="columns">
+          <div class="column">
+            <div class="field">
+              <label class="label">Телефон</label>
+              <div class="control">
+                <input class="input" type="tel" name="phone_number" value="{{ hospital.phone_number or '' }}" placeholder="+380XXXXXXXXX">
+              </div>
+            </div>
+          </div>
+          <div class="column">
+            <div class="field">
+              <label class="label">Email</label>
+              <div class="control">
+                <input class="input" type="email" name="email" value="{{ hospital.email or '' }}" placeholder="email@example.com">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label">Веб-сайт</label>
+          <div class="control">
+            <input class="input" type="url" name="website" value="{{ hospital.website or '' }}" placeholder="https://example.com">
+          </div>
+        </div>
+
+        <div class="field is-grouped is-grouped-centered mt-5">
+          <div class="control">
+            <button type="submit" class="button is-danger">
+              <span class="icon"><i class="fas fa-save"></i></span>
+              <span>Зберегти зміни</span>
+            </button>
+          </div>
+          <div class="control">
+            <button type="button" class="button is-danger is-light" onclick="confirmDeleteHospital({{ hospital.id }})">
+              <span class="icon"><i class="fas fa-trash"></i></span>
+              <span>Видалити лікарню</span>
+            </button>
+          </div>
+          <div class="control">
+            <a href="/pages/admin/hospitals" class="button is-light">
+              <span class="icon"><i class="fas fa-times"></i></span>
+              <span>Скасувати</span>
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Hospital Modal -->
+<div class="modal" id="deleteHospitalModal">
+  <div class="modal-background"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Підтвердження видалення</p>
+      <button class="delete" aria-label="close" onclick="closeDeleteModal()"></button>
+    </header>
+    <section class="modal-card-body">
+      <p>Ви впевнені, що хочете видалити цю лікарню?</p>
+      <p class="has-text-danger">Ця дія незворотна.</p>
+    </section>
+    <footer class="modal-card-foot">
+      <button class="button is-danger" id="confirmDeleteButton">Видалити</button>
+      <button class="button" onclick="closeDeleteModal()">Скасувати</button>
+    </footer>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/script.js"></script>
+<script>
+  let hospitalIdToDelete = null;
+
+  document.getElementById('hospital-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const hospitalId = this.getAttribute('data-hospital-id');
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+
+    // Clean up empty fields
+    for (const key in data) {
+      if (data[key] === "") {
+        data[key] = null;
+      }
+    }
+
+    try {
+      const response = await fetch(`/api/hospitals/${hospitalId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        // Success
+        alert('Лікарню успішно оновлено!');
+        window.location.reload();
+      } else {
+        // Error
+        const errorData = await response.json();
+        alert(errorData.detail || 'Помилка при оновленні лікарні');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Сталася помилка при оновленні лікарні');
+    }
+  });
+
+  // Hospital deletion
+  function confirmDeleteHospital(hospitalId) {
+    hospitalIdToDelete = hospitalId;
+    document.getElementById('deleteHospitalModal').classList.add('is-active');
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('deleteHospitalModal').classList.remove('is-active');
+    hospitalIdToDelete = null;
+  }
+
+  document.getElementById('confirmDeleteButton').addEventListener('click', async function() {
+    if (!hospitalIdToDelete) return;
+
+    try {
+      const response = await fetch(`/api/hospitals/${hospitalIdToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Success
+        window.location.href = '/pages/admin/hospitals';
+      } else {
+        // Error
+        const errorData = await response.json();
+        alert(errorData.detail || 'Помилка при видаленні лікарні');
+        closeDeleteModal();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Сталася помилка при видаленні лікарні');
+      closeDeleteModal();
+    }
+  });
+</script>
+{% endblock %}
