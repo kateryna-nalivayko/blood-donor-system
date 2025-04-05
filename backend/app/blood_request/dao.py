@@ -7,6 +7,8 @@ from datetime import datetime
 from app.common.enums import RequestStatus
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload
+from app.database import async_session_maker
 
 
 class BloodRequestDAO(BaseDAO):
@@ -41,14 +43,35 @@ class BloodRequestDAO(BaseDAO):
             return result.scalar_one_or_none()
     
     @classmethod
-    async def find_all(cls, **filter_by):
-        """Override to eager load donations relationship"""
+    async def find_all(
+        cls, 
+        limit: Optional[int] = None, 
+        offset: Optional[int] = None,
+        order_by: Optional[List] = None,
+        **filter_by
+    ):
+        """Find all blood requests with optional filtering, pagination and ordering"""
         async with async_session_maker() as session:
-            query = select(cls.model).options(
+            stmt = select(cls.model).options(
                 selectinload(cls.model.donations)
-            ).filter_by(**filter_by)
+            )
             
-            result = await session.execute(query)
+            # Apply filters
+            for field, value in filter_by.items():
+                if hasattr(cls.model, field):
+                    stmt = stmt.filter(getattr(cls.model, field) == value)
+            
+            # Apply ordering
+            if order_by:
+                stmt = stmt.order_by(*order_by)
+            
+            # Apply pagination
+            if limit is not None:
+                stmt = stmt.limit(limit)
+            if offset is not None:
+                stmt = stmt.offset(offset)
+                
+            result = await session.execute(stmt)
             return result.scalars().all()
     
     @classmethod
@@ -168,3 +191,51 @@ class BloodRequestDAO(BaseDAO):
                 _ = instance.is_fulfilled
                 
             return instances
+    
+    @classmethod
+    async def count(cls, **filter_by) -> int:
+        """Count blood requests with optional filtering"""
+        async with async_session_maker() as session:
+            stmt = select(func.count()).select_from(cls.model)
+            
+            # Apply filters
+            for field, value in filter_by.items():
+                if hasattr(cls.model, field):
+                    stmt = stmt.where(getattr(cls.model, field) == value)
+                    
+            result = await session.execute(stmt)
+            return result.scalar() or 0
+    
+    @classmethod
+    async def count_by_min_urgency(cls, urgency_min: int, **filter_by) -> int:
+        """Count blood requests with minimum urgency level and optional filtering"""
+        async with async_session_maker() as session:
+            stmt = select(func.count()).select_from(cls.model)
+            
+            # Add urgency filter
+            stmt = stmt.where(cls.model.urgency_level >= urgency_min)
+            
+            # Apply additional filters
+            for field, value in filter_by.items():
+                if hasattr(cls.model, field):
+                    stmt = stmt.where(getattr(cls.model, field) == value)
+                    
+            result = await session.execute(stmt)
+            return result.scalar() or 0
+        
+
+    @classmethod
+    async def find_one_with_staff(cls, **filter_by):
+        """Find one blood request with all relationships eager loaded"""
+        async with async_session_maker() as session:
+            query = select(cls.model).options(
+                # Load the donations relationship
+                selectinload(cls.model.donations),
+                # Load the staff relationship
+                joinedload(cls.model.staff),
+                # Load the hospital relationship
+                joinedload(cls.model.hospital)
+            ).filter_by(**filter_by)
+            
+            result = await session.execute(query)
+            return result.scalar_one_or_none()

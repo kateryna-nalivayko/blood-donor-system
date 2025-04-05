@@ -2,6 +2,7 @@ from app.dao.base import BaseDAO
 from app.hospital_staff.models import HospitalStaff
 from app.database import async_session_maker
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from typing import Optional
 
 
@@ -53,30 +54,40 @@ class HospitalStaffDAO(BaseDAO):
             
             return staff
         
-
-@classmethod
-async def update(cls, staff_id: int, **values) -> Optional[HospitalStaff]:
-    """
-    Update a hospital staff profile with the given values.
-    
-    Args:
-        staff_id: ID of the hospital staff profile to update
-        **values: Key-value pairs of fields to update
+    @classmethod
+    async def update(cls, staff_id: int, **values) -> Optional[HospitalStaff]:
+        """
+        Update a hospital staff profile with the given values.
         
-    Returns:
-        Updated HospitalStaff instance or None if not found
-    """
-    async with async_session_maker() as session:
-        staff = await session.execute(select(cls.model).filter_by(id=staff_id))
-        staff = staff.scalar_one_or_none()
+        Args:
+            staff_id: ID of the hospital staff profile to update
+            **values: Key-value pairs of fields to update
+            
+        Returns:
+            Updated HospitalStaff instance or None if not found
+        """
+        async with async_session_maker() as session:
+            staff = await session.execute(select(cls.model).filter_by(id=staff_id))
+            staff = staff.scalar_one_or_none()
+            
+            if not staff:
+                return None
+            
+            for key, value in values.items():
+                if hasattr(staff, key):
+                    setattr(staff, key, value)
+            await session.commit()
+            await session.refresh(staff)
+            
+            return staff
         
-        if not staff:
-            return None
-        
-        for key, value in values.items():
-            if hasattr(staff, key):
-                setattr(staff, key, value)
-        
-        await session.commit()
-        await session.refresh(staff)
-        
+    @classmethod
+    async def find_one_or_none_with_hospital(cls, **filter_by):
+        """Find staff profile with hospital relationship eagerly loaded"""
+        async with async_session_maker() as session:
+            query = select(cls.model).options(
+                joinedload(cls.model.hospital)
+            ).filter_by(**filter_by)
+            
+            result = await session.execute(query)
+            return result.scalar_one_or_none()

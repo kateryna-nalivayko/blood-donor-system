@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Створення запиту на кров - Blood Donor System{% endblock %}
+
+{% block head %}
+<style>
+    .required-field::after {
+        content: '*';
+        color: #f14668;
+        margin-left: 4px;
+    }
+    .urgency-description {
+        font-size: 0.85rem;
+        color: #7a7a7a;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+    <!-- Sidebar -->
+    <div class="column is-one-quarter">
+        <div class="box">
+            <div class="has-text-centered mb-4">
+                <figure class="image is-96x96 is-inline-block">
+                    <img class="is-rounded" src="https://bulma.io/images/placeholders/128x128.png" alt="Profile picture">
+                </figure>
+                <p class="title is-5 mt-2">{{ user.first_name }} {{ user.last_name }}</p>
+                <div class="tags is-centered mt-2">
+                    <span class="tag is-danger">{{ staff.role }}</span>
+                    <span class="tag is-info">{{ staff.department }}</span>
+                </div>
+                <p class="subtitle is-6 has-text-weight-bold">{{ hospital.name }}</p>
+            </div>
+            
+            <aside class="menu">
+                <p class="menu-label">Панель керування</p>
+                <ul class="menu-list">
+                    <li><a href="/pages/hospital_staff/dashboard">
+                        <span class="icon"><i class="fas fa-home"></i></span>
+                        <span>Головна</span>
+                    </a></li>
+                    <li><a href="/pages/blood-requests">
+                        <span class="icon"><i class="fas fa-tint"></i></span>
+                        <span>Запити на кров</span>
+                    </a></li>
+                    <li><a href="/pages/create-blood-request" class="is-active">
+                        <span class="icon"><i class="fas fa-plus-circle"></i></span>
+                        <span>Створити запит</span>
+                    </a></li>
+                </ul>
+                
+                <p class="menu-label">Звіти</p>
+                <ul class="menu-list">
+                    <li><a href="/pages/hospital_staff/reports">
+                        <span class="icon"><i class="fas fa-chart-bar"></i></span>
+                        <span>Статистика запитів</span>
+                    </a></li>
+                    <li><a href="/pages/hospital_staff/donations">
+                        <span class="icon"><i class="fas fa-heartbeat"></i></span>
+                        <span>Донації</span>
+                    </a></li>
+                </ul>
+                
+                <p class="menu-label">Профіль</p>
+                <ul class="menu-list">
+                    <li><a href="/pages/profile">
+                        <span class="icon"><i class="fas fa-user"></i></span>
+                        <span>Мій профіль</span>
+                    </a></li>
+                    <li><a href="#" class="has-text-danger" onclick="logoutFunction(); return false;">
+                        <span class="icon"><i class="fas fa-sign-out-alt"></i></span>
+                        <span>Вийти</span>
+                    </a></li>
+                </ul>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="column">
+        <div class="box">
+            <h1 class="title has-text-danger">
+                <span class="icon"><i class="fas fa-plus-circle"></i></span>
+                <span>Створення запиту на кров</span>
+            </h1>
+            
+            <p class="subtitle">Заповніть форму для створення нового запиту на кров</p>
+            
+            <form id="createBloodRequestForm" class="mt-5">
+                <div class="columns is-multiline">
+                    <!-- Blood Type -->
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label required-field">Група крові</label>
+                            <div class="control">
+                                <div class="select is-fullwidth">
+                                    <select id="bloodType" name="blood_type" required>
+                                        <option value="" disabled selected>Оберіть групу крові</option>
+                                        {% for blood_type in blood_types %}
+                                        <option value="{{ blood_type }}">{{ blood_type }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Amount Needed -->
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label required-field">Кількість крові (мл)</label>
+                            <div class="control">
+                                <input class="input" type="number" id="amountNeeded" name="amount_needed_ml" 
+                                       placeholder="Кількість в мілілітрах" min="100" max="10000" required>
+                            </div>
+                            <p class="help">Від 100 до 10000 мл</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Urgency Level -->
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label required-field">Рівень терміновості</label>
+                            <div class="control">
+                                <div class="select is-fullwidth">
+                                    <select id="urgencyLevel" name="urgency_level" required>
+                                        <option value="1">1 - Низька терміновість</option>
+                                        <option value="2">2 - Нижче середньої</option>
+                                        <option value="3" selected>3 - Середня</option>
+                                        <option value="4">4 - Висока</option>
+                                        <option value="5">5 - Критична</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <p class="help urgency-description" id="urgencyDescription">
+                                3 - Середня терміновість: Необхідно протягом 3-7 днів
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Needed By Date -->
+                    <div class="column is-6">
+                        <div class="field">
+                            <label class="label">Необхідно до дати</label>
+                            <div class="control">
+                                <input class="input" type="date" id="neededByDate" name="needed_by_date">
+                            </div>
+                            <p class="help">Якщо не вказано, буде розраховано автоматично</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Patient Info -->
+                    <div class="column is-12">
+                        <div class="field">
+                            <label class="label">Інформація про пацієнта</label>
+                            <div class="control">
+                                <textarea class="textarea" id="patientInfo" name="patient_info" 
+                                          placeholder="Вік, стать, діагноз та інша доречна інформація"></textarea>
+                            </div>
+                            <p class="help">Ця інформація допоможе донорам зрозуміти важливість запиту</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="column is-12">
+                        <div class="field">
+                            <label class="label">Додаткові примітки</label>
+                            <div class="control">
+                                <textarea class="textarea" id="notes" name="notes" 
+                                          placeholder="Будь-яка додаткова інформація"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="notification is-info is-light mt-5">
+                    <p>Запит на кров буде створений для лікарні "{{ hospital.name }}" від вашого імені.</p>
+                    <p>Статус запиту буде встановлено як "В очікуванні" до моменту підтвердження.</p>
+                </div>
+                
+                <div class="field is-grouped is-grouped-centered mt-5">
+                    <p class="control">
+                        <button type="submit" class="button is-danger">
+                            <span class="icon"><i class="fas fa-plus"></i></span>
+                            <span>Створити запит</span>
+                        </button>
+                    </p>
+                    <p class="control">
+                        <a href="/pages/hospital_staff/dashboard" class="button is-light">
+                            <span class="icon"><i class="fas fa-times"></i></span>
+                            <span>Скасувати</span>
+                        </a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urgencyLevel = document.getElementById('urgencyLevel');
+    const urgencyDescription = document.getElementById('urgencyDescription');
+    const form = document.getElementById('createBloodRequestForm');
+    
+    // Update urgency description when selection changes
+    urgencyLevel.addEventListener('change', function() {
+        const urgencyDescriptions = {
+            '1': '1 - Низька терміновість: Планова потреба, необхідно протягом 2-3 тижнів',
+            '2': '2 - Нижче середньої: Необхідно протягом 1-2 тижнів',
+            '3': '3 - Середня терміновість: Необхідно протягом 3-7 днів',
+            '4': '4 - Висока терміновість: Необхідно протягом 1-2 днів',
+            '5': '5 - Критична: Необхідно негайно, життєво важлива ситуація'
+        };
+        
+        urgencyDescription.textContent = urgencyDescriptions[this.value];
+    });
+    
+    // Handle form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Create form data object
+        const formData = {
+            blood_type: document.getElementById('bloodType').value,
+            amount_needed_ml: parseInt(document.getElementById('amountNeeded').value),
+            urgency_level: parseInt(document.getElementById('urgencyLevel').value),
+            patient_info: document.getElementById('patientInfo').value,
+            notes: document.getElementById('notes').value
+        };
+        
+        const neededByDate = document.getElementById('neededByDate').value;
+        if (neededByDate) {
+            formData.needed_by_date = neededByDate;
+        }
+        
+        // Send API request
+        fetch('/blood-requests/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Помилка при створенні запиту');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Запит на кров успішно створено!');
+            window.location.href = `/pages/blood-requests/${data.id}`;
+        })
+        .catch(error => {
+            alert('Помилка: ' + error.message);
+        });
+    });
+});
+
+function logoutFunction() {
+    if (confirm('Ви впевнені, що хочете вийти?')) {
+        // Call logout API
+        fetch('/users/logout', {
+            method: 'POST',
+            credentials: 'same-origin'
+        }).then(response => {
+            if (response.ok) {
+                window.location.href = '/';
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

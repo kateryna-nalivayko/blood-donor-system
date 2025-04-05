@@ -1,0 +1,452 @@
+{% extends "base.html" %} {% block title %}Панель керування лікарнею - Blood
+Donor System{% endblock %} {% block head %}
+<style>
+  .dashboard-card {
+    transition: transform 0.3s;
+    height: 100%;
+  }
+  .dashboard-card:hover {
+    transform: translateY(-5px);
+  }
+  .stat-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #cc0f35;
+  }
+  .indicator-up {
+    color: #48c774;
+  }
+  .indicator-down {
+    color: #f14668;
+  }
+  .blood-type-badge {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  .quick-action {
+    transition: all 0.2s;
+  }
+  .quick-action:hover {
+    transform: scale(1.05);
+  }
+  .request-status {
+    text-transform: capitalize;
+  }
+  .progress-wrapper {
+    position: relative;
+  }
+  .progress-value {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    width: 100%;
+  }
+  .urgency-1 {
+    color: #3273dc;
+  }
+  .urgency-2 {
+    color: #48c774;
+  }
+  .urgency-3 {
+    color: #ffdd57;
+  }
+  .urgency-4 {
+    color: #ff9c27;
+  }
+  .urgency-5 {
+    color: #f14668;
+  }
+  .bg-urgency-1 {
+    background-color: #3273dc;
+  }
+  .bg-urgency-2 {
+    background-color: #48c774;
+  }
+  .bg-urgency-3 {
+    background-color: #ffdd57;
+  }
+  .bg-urgency-4 {
+    background-color: #ff9c27;
+  }
+  .bg-urgency-5 {
+    background-color: #f14668;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="columns">
+  <!-- Sidebar -->
+  <div class="column is-one-quarter">
+    <div class="box">
+      <div class="has-text-centered mb-4">
+        <figure class="image is-96x96 is-inline-block">
+          <img
+            class="is-rounded"
+            src="https://bulma.io/images/placeholders/128x128.png"
+            alt="Profile picture"
+          />
+        </figure>
+        <p class="title is-5 mt-2">
+          {{ user.first_name }} {{ user.last_name }}
+        </p>
+        <div class="tags is-centered mt-2">
+          <span class="tag is-danger">{{ staff.role }}</span>
+          <span class="tag is-info">{{ staff.department }}</span>
+        </div>
+        <p class="subtitle is-6 has-text-weight-bold">{{ hospital.name }}</p>
+      </div>
+
+      <aside class="menu">
+        <p class="menu-label">Панель керування</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/hospital_staff/dashboard" class="is-active">
+              <span class="icon"><i class="fas fa-home"></i></span>
+              <span>Головна</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/blood-requests">
+              <span class="icon"><i class="fas fa-tint"></i></span>
+              <span>Запити на кров</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/create-blood-request">
+              <span class="icon"><i class="fas fa-plus-circle"></i></span>
+              <span>Створити запит</span>
+            </a>
+          </li>
+        </ul>
+
+        <p class="menu-label">Звіти</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/hospital_staff/reports">
+              <span class="icon"><i class="fas fa-chart-bar"></i></span>
+              <span>Статистика запитів</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/donations">
+              <span class="icon"><i class="fas fa-heartbeat"></i></span>
+              <span>Донації</span>
+            </a>
+          </li>
+        </ul>
+
+        <p class="menu-label">Профіль</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/profile">
+              <span class="icon"><i class="fas fa-user"></i></span>
+              <span>Мій профіль</span>
+            </a>
+          </li>
+          <li>
+            <a
+              href="#"
+              class="has-text-danger"
+              onclick="logoutFunction(); return false;"
+            >
+              <span class="icon"><i class="fas fa-sign-out-alt"></i></span>
+              <span>Вийти</span>
+            </a>
+          </li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="column">
+    <!-- Welcome & Overview -->
+    <div class="box">
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            <h1 class="title has-text-danger">
+              <span class="icon"><i class="fas fa-hospital"></i></span>
+              <span>Вітаємо в панелі керування лікарнею</span>
+            </h1>
+          </div>
+        </div>
+        <div class="level-right">
+          <div class="level-item">
+            <div class="field has-addons">
+              <p class="control">
+                <a
+                  href="/pages/hospital_staff/create-blood-request"
+                  class="button is-danger"
+                >
+                  <span class="icon"><i class="fas fa-plus"></i></span>
+                  <span>Новий запит</span>
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="subtitle">
+        Панель керування для персоналу лікарні "{{ hospital.name }}"
+      </p>
+
+      <div class="notification is-light">
+        <p>
+          В цій панелі ви можете створювати та керувати запитами на кров,
+          переглядати статистику та відстежувати донації.
+        </p>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="columns is-multiline">
+      <div class="column is-6-tablet is-3-desktop">
+        <div
+          class="box dashboard-card has-background-danger-light has-text-centered"
+        >
+          <p class="heading">Активні запити</p>
+          <p class="stat-value">
+            {{ stats.pending_count + stats.approved_count }}
+          </p>
+          <span class="tag is-danger is-light">Очікують виконання</span>
+        </div>
+      </div>
+
+      <div class="column is-6-tablet is-3-desktop">
+        <div
+          class="box dashboard-card has-background-danger-light has-text-centered"
+        >
+          <p class="heading">Завершені</p>
+          <p class="stat-value">{{ stats.fulfilled_count }}</p>
+          <span class="tag is-success is-light">Успішно виконані</span>
+        </div>
+      </div>
+
+      <div class="column is-6-tablet is-3-desktop">
+        <div
+          class="box dashboard-card has-background-danger-light has-text-centered"
+        >
+          <p class="heading">Критичні запити</p>
+          <p class="stat-value">{{ stats.critical_count }}</p>
+          <span class="tag is-warning is-light">Високий пріоритет</span>
+        </div>
+      </div>
+
+      <div class="column is-6-tablet is-3-desktop">
+        <div
+          class="box dashboard-card has-background-danger-light has-text-centered"
+        >
+          <p class="heading">% виконання (30 днів)</p>
+          <p class="stat-value">{{ stats.fulfillment_rate }}%</p>
+          <div class="tags is-centered">
+            <span class="tag is-info is-light"
+              >{{ stats.fulfilled_last_30_days }} з {{
+              stats.requests_last_30_days }}</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blood Type Stats -->
+    <div class="box">
+      <h2 class="subtitle has-text-danger is-4 mb-4">
+        <span class="icon"><i class="fas fa-tint"></i></span>
+        <span>Потреби в крові за групами</span>
+      </h2>
+
+      <div class="columns is-multiline">
+        {% for blood_type in blood_types %}
+        <div class="column is-6-tablet is-3-desktop">
+          <div class="box has-text-centered">
+            <span class="blood-type-badge">{{ blood_type }}</span>
+            <p class="stat-value is-size-3">
+              {{ stats.blood_type_counts[blood_type] }}
+            </p>
+            <span class="tag is-danger is-light">Активних запитів</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <h2 class="subtitle has-text-danger is-4">
+      <span class="icon"><i class="fas fa-bolt"></i></span>
+      <span>Швидкі дії</span>
+    </h2>
+
+    <div class="columns is-multiline">
+      <div class="column is-4">
+        <a
+          href="/pages/hospital_staff/create-blood-request"
+          class="box has-text-centered quick-action"
+        >
+          <span class="icon is-large has-text-danger">
+            <i class="fas fa-plus-circle fa-2x"></i>
+          </span>
+          <p class="title is-5 mt-2">Створити запит</p>
+          <p>Створити новий запит на донацію крові</p>
+        </a>
+      </div>
+
+      <div class="column is-4">
+        <a
+          href="/pages/hospital_staff/blood-requests"
+          class="box has-text-centered quick-action"
+        >
+          <span class="icon is-large has-text-danger">
+            <i class="fas fa-clipboard-list fa-2x"></i>
+          </span>
+          <p class="title is-5 mt-2">Всі запити</p>
+          <p>Перегляд та керування запитами на кров</p>
+        </a>
+      </div>
+
+      <div class="column is-4">
+        <a
+          href="#"
+          class="box has-text-centered quick-action"
+          id="exportRequestsBtn"
+        >
+          <span class="icon is-large has-text-danger">
+            <i class="fas fa-file-export fa-2x"></i>
+          </span>
+          <p class="title is-5 mt-2">Експорт звіту</p>
+          <p>Завантажити звіт по запитам на кров</p>
+        </a>
+      </div>
+    </div>
+
+    <!-- Recent Blood Requests -->
+    <div class="box">
+      <h2 class="subtitle has-text-danger is-4 mb-4">
+        <span class="icon"><i class="fas fa-history"></i></span>
+        <span>Останні запити</span>
+      </h2>
+
+      {% if recent_requests %}
+      <div class="table-container">
+        <table class="table is-fullwidth is-hoverable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Група крові</th>
+              <th>Кількість (мл)</th>
+              <th>Дата створення</th>
+              <th>Терміновість</th>
+              <th>Статус</th>
+              <th>Дії</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for request in recent_requests %}
+            <tr>
+              <td>
+                <a href="/pages/hospital_staff/blood-requests/{{ request.id }}"
+                  >#{{ request.id }}</a
+                >
+              </td>
+              <td>{{ request.blood_type }}</td>
+              <td>{{ request.amount_needed_ml }} мл</td>
+              <td>{{ request.request_date.strftime('%d.%m.%Y') }}</td>
+              <td>
+                <span class="tag is-medium urgency-{{ request.urgency_level }}">
+                  {{ request.urgency_level }}
+                </span>
+              </td>
+              <td>
+                <span
+                  class="tag is-medium {% if request.status == 'pending' %}is-warning{% endif %} {% if request.status == 'approved' %}is-info{% endif %} {% if request.status == 'fulfilled' %}is-success{% endif %} {% if request.status == 'canceled' %}is-light{% endif %}"
+                >
+                  <span class="request-status">{{ request.status }}</span>
+                </span>
+              </td>
+              <td>
+                <div class="buttons are-small">
+                  <a
+                    href="/pages/hospital_staff/blood-requests/{{ request.id }}"
+                    class="button is-link"
+                  >
+                    <span class="icon"><i class="fas fa-eye"></i></span>
+                  </a>
+                  {% if request.status in ['pending', 'approved'] %}
+                  <button
+                    class="button is-danger edit-request-btn"
+                    data-id="{{ request.id }}"
+                  >
+                    <span class="icon"><i class="fas fa-edit"></i></span>
+                  </button>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="has-text-centered mt-4">
+        <a href="/pages/blood-requests" class="button is-danger is-light">
+          <span class="icon"><i class="fas fa-list"></i></span>
+          <span>Переглянути всі запити</span>
+        </a>
+      </div>
+      {% else %}
+      <div class="notification is-light has-text-centered">
+        <p>
+          Поки що немає жодних запитів на кров. Створіть новий запит, щоб
+          розпочати.
+        </p>
+        <a href="/pages/create-blood-request" class="button is-danger mt-3">
+          <span class="icon"><i class="fas fa-plus"></i></span>
+          <span>Створити запит</span>
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Initialize interactive elements
+    const exportBtn = document.getElementById("exportRequestsBtn");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        alert("Функція експорту звіту буде доступна незабаром!");
+      });
+    }
+
+    // Edit request buttons
+    const editButtons = document.querySelectorAll(".edit-request-btn");
+    editButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        const requestId = this.getAttribute("data-id");
+        window.location.href = `/pages/hospital_staff/blood-requests/${requestId}`;
+      });
+    });
+  });
+
+  function logoutFunction() {
+    if (confirm("Ви впевнені, що хочете вийти?")) {
+      // Call logout API
+      fetch("/users/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      }).then((response) => {
+        if (response.ok) {
+          window.location.href = "/";
+        }
+      });
+    }
+  }
+</script>
+{% endblock %}

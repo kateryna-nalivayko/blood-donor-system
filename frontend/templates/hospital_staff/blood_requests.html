@@ -1,0 +1,476 @@
+{% extends "base.html" %} {% block title %}Запити на кров - Blood Donor System{%
+endblock %} {% block head %}
+<style>
+  .urgency-1 {
+    color: #3273dc;
+  }
+  .urgency-2 {
+    color: #48c774;
+  }
+  .urgency-3 {
+    color: #ffdd57;
+  }
+  .urgency-4 {
+    color: #ff9c27;
+  }
+  .urgency-5 {
+    color: #f14668;
+  }
+  .bg-urgency-1 {
+    background-color: #3273dc;
+  }
+  .bg-urgency-2 {
+    background-color: #48c774;
+  }
+  .bg-urgency-3 {
+    background-color: #ffdd57;
+  }
+  .bg-urgency-4 {
+    background-color: #ff9c27;
+  }
+  .bg-urgency-5 {
+    background-color: #f14668;
+  }
+  .request-status {
+    text-transform: capitalize;
+  }
+  .progress-wrapper {
+    position: relative;
+  }
+  .progress-value {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    width: 100%;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="columns">
+  <!-- Sidebar -->
+  <div class="column is-one-quarter">
+    <div class="box">
+      <div class="has-text-centered mb-4">
+        <figure class="image is-96x96 is-inline-block">
+          <img
+            class="is-rounded"
+            src="https://bulma.io/images/placeholders/128x128.png"
+            alt="Profile picture"
+          />
+        </figure>
+        <p class="title is-5 mt-2">
+          {{ user.first_name }} {{ user.last_name }}
+        </p>
+        <div class="tags is-centered mt-2">
+          <span class="tag is-danger">{{ staff.role }}</span>
+          <span class="tag is-info">{{ staff.department }}</span>
+        </div>
+        <p class="subtitle is-6 has-text-weight-bold">{{ hospital.name }}</p>
+      </div>
+
+      <aside class="menu">
+        <p class="menu-label">Панель керування</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/hospital_staff/dashboard">
+              <span class="icon"><i class="fas fa-home"></i></span>
+              <span>Головна</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pageshospital_staff//blood-requests" class="is-active">
+              <span class="icon"><i class="fas fa-tint"></i></span>
+              <span>Запити на кров</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pageshospital_staff//create-blood-request">
+              <span class="icon"><i class="fas fa-plus-circle"></i></span>
+              <span>Створити запит</span>
+            </a>
+          </li>
+        </ul>
+
+        <p class="menu-label">Звіти</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/hospital_staff/reports">
+              <span class="icon"><i class="fas fa-chart-bar"></i></span>
+              <span>Статистика запитів</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/donations">
+              <span class="icon"><i class="fas fa-heartbeat"></i></span>
+              <span>Донації</span>
+            </a>
+          </li>
+        </ul>
+
+        <p class="menu-label">Профіль</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/profile">
+              <span class="icon"><i class="fas fa-user"></i></span>
+              <span>Мій профіль</span>
+            </a>
+          </li>
+          <li>
+            <a
+              href="#"
+              class="has-text-danger"
+              onclick="logoutFunction(); return false;"
+            >
+              <span class="icon"><i class="fas fa-sign-out-alt"></i></span>
+              <span>Вийти</span>
+            </a>
+          </li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="column">
+    <div class="box">
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            <h1 class="title has-text-danger">
+              <span class="icon"><i class="fas fa-tint"></i></span>
+              <span>Запити на кров</span>
+            </h1>
+          </div>
+        </div>
+        <div class="level-right">
+          <div class="level-item">
+            <a
+              href="/pages/hospital_staff/create-blood-request"
+              class="button is-danger"
+            >
+              <span class="icon"><i class="fas fa-plus"></i></span>
+              <span>Новий запит</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="box">
+        <h3 class="subtitle is-5">Фільтри</h3>
+        <div class="columns">
+          <div class="column is-3">
+            <div class="field">
+              <label class="label">Статус</label>
+              <div class="control">
+                <div class="select is-fullwidth">
+                  <select id="statusFilter">
+                    <option value="">Всі статуси</option>
+                    {% for status in statuses %}
+                    <option value="{{ status }}">{{ status|title }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="column is-3">
+            <div class="field">
+              <label class="label">Група крові</label>
+              <div class="control">
+                <div class="select is-fullwidth">
+                  <select id="bloodTypeFilter">
+                    <option value="">Всі групи</option>
+                    {% for blood_type in blood_types %}
+                    <option value="{{ blood_type }}">{{ blood_type }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="column is-3">
+            <div class="field">
+              <label class="label">Мін. терміновість</label>
+              <div class="control">
+                <div class="select is-fullwidth">
+                  <select id="urgencyFilter">
+                    <option value="">Всі рівні</option>
+                    <option value="2">2+</option>
+                    <option value="3">3+</option>
+                    <option value="4">4+</option>
+                    <option value="5">5 (Критична)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="column is-3">
+            <div class="field">
+              <label class="label">&nbsp;</label>
+              <div class="control">
+                <button id="applyFilters" class="button is-link is-fullwidth">
+                  <span class="icon"><i class="fas fa-filter"></i></span>
+                  <span>Застосувати</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Blood Requests Table -->
+      <div id="requestsTableContainer" class="mt-5">
+        <div class="table-container">
+          <table
+            class="table is-fullwidth is-hoverable"
+            id="bloodRequestsTable"
+          >
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Група крові</th>
+                <th>Кількість (мл)</th>
+                <th>Виконання</th>
+                <th>Дата створення</th>
+                <th>Необхідно до</th>
+                <th>Терміновість</th>
+                <th>Статус</th>
+                <th>Дії</th>
+              </tr>
+            </thead>
+            <tbody id="requestsTableBody">
+              <!-- Table rows will be populated by JavaScript -->
+              <tr>
+                <td colspan="9" class="has-text-centered">
+                  <div class="is-loading has-text-centered py-6">
+                    <span class="icon is-large">
+                      <i class="fas fa-spinner fa-pulse fa-2x"></i>
+                    </span>
+                    <p class="mt-2">Завантаження запитів...</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div
+          id="noRequestsMessage"
+          class="notification is-light has-text-centered"
+          style="display: none"
+        >
+          <p>
+            Запити на кров не знайдено. Спробуйте змінити фільтри або створіть
+            новий запит.
+          </p>
+          <a href="/pages/create-blood-request" class="button is-danger mt-3">
+            <span class="icon"><i class="fas fa-plus"></i></span>
+            <span>Створити запит</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const statusFilter = document.getElementById("statusFilter");
+    const bloodTypeFilter = document.getElementById("bloodTypeFilter");
+    const urgencyFilter = document.getElementById("urgencyFilter");
+    const applyFiltersBtn = document.getElementById("applyFilters");
+    const requestsTableBody = document.getElementById("requestsTableBody");
+    const noRequestsMessage = document.getElementById("noRequestsMessage");
+
+    // Load requests when page loads
+    loadBloodRequests();
+
+    // Apply filters button
+    applyFiltersBtn.addEventListener("click", function () {
+      loadBloodRequests();
+    });
+
+    // Load blood requests from API with filters
+    function loadBloodRequests() {
+      const status = statusFilter.value;
+      const bloodType = bloodTypeFilter.value;
+      const urgencyMin = urgencyFilter.value;
+
+      let url = "/blood-requests/my-hospital";
+      const params = new URLSearchParams();
+
+      if (status) params.append("status", status);
+      if (bloodType) params.append("blood_type", bloodType);
+      if (urgencyMin) params.append("urgency_min", urgencyMin);
+
+      const queryString = params.toString();
+      if (queryString) url += "?" + queryString;
+
+      // Show loading state
+      requestsTableBody.innerHTML = `
+            <tr>
+                <td colspan="9" class="has-text-centered">
+                    <div class="is-loading has-text-centered py-6">
+                        <span class="icon is-large">
+                            <i class="fas fa-spinner fa-pulse fa-2x"></i>
+                        </span>
+                        <p class="mt-2">Завантаження запитів...</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+      fetch(url)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Помилка завантаження запитів");
+          }
+          return response.json();
+        })
+        .then((requests) => {
+          if (requests.length === 0) {
+            // No requests found
+            requestsTableBody.innerHTML = "";
+            noRequestsMessage.style.display = "block";
+          } else {
+            // Render requests
+            noRequestsMessage.style.display = "none";
+            renderBloodRequests(requests);
+          }
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          requestsTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="has-text-centered">
+                            <div class="notification is-danger is-light">
+                                <p>Помилка завантаження запитів. Спробуйте оновити сторінку.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+        });
+    }
+
+    // Render blood requests in the table
+    function renderBloodRequests(requests) {
+      requestsTableBody.innerHTML = "";
+
+      requests.forEach((request) => {
+        const row = document.createElement("tr");
+
+        // Format dates
+        const requestDate = new Date(request.request_date);
+        const formattedRequestDate = requestDate.toLocaleDateString("uk-UA");
+
+        let neededByDate = "Не вказано";
+        if (request.needed_by_date) {
+          const date = new Date(request.needed_by_date);
+          neededByDate = date.toLocaleDateString("uk-UA");
+        }
+
+        // Calculate fulfillment percentage
+        const fulfillmentPercentage = request.fulfillment_percentage || 0;
+
+        // Status class mapping
+        const statusClasses = {
+          pending: "is-warning",
+          approved: "is-info",
+          fulfilled: "is-success",
+          canceled: "is-light",
+        };
+
+        // Determine if editing is allowed
+        const canEdit = ["pending", "approved"].includes(request.status);
+
+        row.innerHTML = `
+                <td><a href="/pages/hospital_staff/blood-requests/${request.id}">#${
+          request.id
+        }</a></td>
+                <td>${request.blood_type}</td>
+                <td>${request.amount_needed_ml} мл</td>
+                <td>
+                    <div class="progress-wrapper">
+                        <progress class="progress is-small ${
+                          fulfillmentPercentage >= 100
+                            ? "is-success"
+                            : "is-danger"
+                        }" 
+                                value="${fulfillmentPercentage}" max="100"></progress>
+                        <p class="progress-value">${Math.round(
+                          fulfillmentPercentage
+                        )}%</p>
+                    </div>
+                </td>
+                <td>${formattedRequestDate}</td>
+                <td>${neededByDate}</td>
+                <td>
+                    <span class="tag is-medium urgency-${
+                      request.urgency_level
+                    }">
+                        ${request.urgency_level}
+                    </span>
+                </td>
+                <td>
+                    <span class="tag is-medium ${
+                      statusClasses[request.status] || "is-light"
+                    }">
+                        <span class="request-status">${request.status}</span>
+                    </span>
+                </td>
+                <td>
+                    <div class="buttons are-small">
+                        <a href="/pages/hospital_staff/blood-requests/${
+                          request.id
+                        }" class="button is-link">
+                            <span class="icon"><i class="fas fa-eye"></i></span>
+                        </a>
+                        ${
+                          canEdit
+                            ? `
+                        <button class="button is-danger edit-request-btn" data-id="${request.id}">
+                            <span class="icon"><i class="fas fa-edit"></i></span>
+                        </button>
+                        `
+                            : ""
+                        }
+                    </div>
+                </td>
+            `;
+
+        requestsTableBody.appendChild(row);
+      });
+
+      // Add event listeners to edit buttons
+      document.querySelectorAll(".edit-request-btn").forEach((button) => {
+        button.addEventListener("click", function () {
+          const requestId = this.getAttribute("data-id");
+          window.location.href = `/pages/hospital_staff/blood-requests/${requestId}`;
+        });
+      });
+    }
+  });
+
+  function logoutFunction() {
+    if (confirm("Ви впевнені, що хочете вийти?")) {
+      // Call logout API
+      fetch("/users/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      }).then((response) => {
+        if (response.ok) {
+          window.location.href = "/";
+        }
+      });
+    }
+  }
+</script>
+{% endblock %}

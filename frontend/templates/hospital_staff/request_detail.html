@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Запит на кров #{{ blood_request.id }} - Blood Donor System{% endblock %}
+
+{% block head %}
+<style>
+  .request-detail-card {
+    margin-bottom: 20px;
+  }
+  .request-status {
+    text-transform: capitalize;
+  }
+  .urgency-1 { color: #3273dc; }
+  .urgency-2 { color: #48c774; }
+  .urgency-3 { color: #ffdd57; }
+  .urgency-4 { color: #ff9c27; }
+  .urgency-5 { color: #f14668; }
+  .progress-wrapper {
+    position: relative;
+  }
+  .progress-value {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    width: 100%;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+  <!-- Left Column - Request Details -->
+  <div class="column is-8">
+    <div class="box">
+      <nav class="breadcrumb" aria-label="breadcrumbs">
+        <ul>
+          <li><a href="/pages/hospital_staff/dashboard">Панель керування</a></li>
+          <li><a href="/pages/hospital_staff/blood-requests">Запити на кров</a></li>
+          <li class="is-active"><a href="#" aria-current="page">Запит #{{ blood_request.id }}</a></li>
+        </ul>
+      </nav>
+
+      <div class="is-flex is-justify-content-space-between mb-4">
+        <h1 class="title is-4">
+          Запит на кров #{{ blood_request.id }}
+          <span class="tag is-{{ blood_request.status }} ml-2">{{ blood_request.status }}</span>
+        </h1>
+        <div>
+          <span class="tag is-large urgency-{{ blood_request.urgency_level }}">
+            Терміновість: {{ blood_request.urgency_level }}
+          </span>
+        </div>
+      </div>
+
+      <div class="columns is-multiline">
+        <div class="column is-6">
+          <div class="field">
+            <label class="label">Група крові</label>
+            <div class="control">
+              <input class="input" type="text" readonly value="{{ blood_request.blood_type }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="column is-6">
+          <div class="field">
+            <label class="label">Кількість</label>
+            <div class="control">
+              <input class="input" type="text" readonly value="{{ blood_request.amount_needed_ml }} мл">
+            </div>
+          </div>
+        </div>
+
+        <div class="column is-6">
+          <div class="field">
+            <label class="label">Дата запиту</label>
+            <div class="control">
+              <input class="input" type="text" readonly value="{{ blood_request.request_date.strftime('%d.%m.%Y') }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="column is-6">
+          <div class="field">
+            <label class="label">Потрібно до</label>
+            <div class="control">
+              <input class="input" type="text" readonly 
+                value="{% if blood_request.needed_by_date %}{{ blood_request.needed_by_date.strftime('%d.%m.%Y') }}{% else %}Не вказано{% endif %}">
+            </div>
+          </div>
+        </div>
+
+        {% if blood_request.patient_info %}
+        <div class="column is-12">
+          <div class="field">
+            <label class="label">Інформація про пацієнта</label>
+            <div class="control">
+              <textarea class="textarea" readonly>{{ blood_request.patient_info }}</textarea>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if blood_request.notes %}
+        <div class="column is-12">
+          <div class="field">
+            <label class="label">Примітки</label>
+            <div class="control">
+              <textarea class="textarea" readonly>{{ blood_request.notes }}</textarea>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Donations Section -->
+    <div class="box">
+      <h2 class="title is-5">Донації 
+        <span class="tag is-info is-light">{{ donations|length }}</span>
+      </h2>
+
+      <div class="mb-4">
+        <p class="mb-2">Прогрес збору крові:</p>
+        <div class="progress-wrapper">
+          <progress class="progress is-danger" 
+                    value="{{ blood_request.collected_amount_ml }}" 
+                    max="{{ blood_request.amount_needed_ml }}"></progress>
+          <div class="progress-value">
+            {{ blood_request.collected_amount_ml }} мл з {{ blood_request.amount_needed_ml }} мл
+            ({{ blood_request.fulfillment_percentage|int }}%)
+          </div>
+        </div>
+      </div>
+
+      {% if donations %}
+      <table class="table is-fullwidth is-hoverable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Донор</th>
+            <th>Кількість</th>
+            <th>Дата</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for donation in donations %}
+          <tr>
+            <td>#{{ donation.id }}</td>
+            <td>
+              {% if donation.donor and donation.donor.user %}
+                {{ donation.donor.user.first_name }} {{ donation.donor.user.last_name }}
+              {% else %}
+                Невідомий донор
+              {% endif %}
+            </td>
+            <td>{{ donation.blood_amount_ml }} мл</td>
+            <td>{{ donation.donation_date.strftime('%d.%m.%Y') }}</td>
+            <td><span class="tag is-{{ donation.status }}">{{ donation.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="notification is-light">
+        <p class="has-text-centered">Ще немає донацій для цього запиту</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Right Column - Actions and Info -->
+  <div class="column is-4">
+    <!-- Hospital Info -->
+    <div class="box">
+      <h3 class="title is-5">Інформація про лікарню</h3>
+      <div class="content">
+        <p><strong>Назва:</strong> {{ hospital.name }}</p>
+        <p><strong>Адреса:</strong> {{ hospital.address }}</p>
+        <p><strong>Телефон:</strong> {{ hospital.phone }}</p>
+      </div>
+    </div>
+
+    <!-- Request Info -->
+    <div class="box">
+      <h3 class="title is-5">Інформація про запит</h3>
+      <div class="content">
+        <p><strong>Створено:</strong> {{ blood_request.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        <p><strong>Останнє оновлення:</strong> {{ blood_request.updated_at.strftime('%d.%m.%Y %H:%M') }}</p>
+        <p><strong>Запитувач:</strong> {{ user.first_name }} {{ user.last_name }}</p>
+        <p><strong>Роль:</strong> {{ staff.role }}</p>
+        <p><strong>Відділення:</strong> {{ staff.department }}</p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="box">
+      <h3 class="title is-5">Дії</h3>
+      
+      <div class="field">
+        <label class="label">Змінити статус</label>
+        <div class="field has-addons">
+          <div class="control is-expanded">
+            <div class="select is-fullwidth">
+              <select id="statusSelect">
+                <option value="pending" {% if blood_request.status == 'pending' %}selected{% endif %}>Очікує</option>
+                <option value="approved" {% if blood_request.status == 'approved' %}selected{% endif %}>Підтверджено</option>
+                <option value="fulfilled" {% if blood_request.status == 'fulfilled' %}selected{% endif %}>Виконано</option>
+                <option value="cancelled" {% if blood_request.status == 'cancelled' %}selected{% endif %}>Скасовано</option>
+              </select>
+            </div>
+          </div>
+          <div class="control">
+            <button id="updateStatusBtn" class="button is-info">Оновити</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="buttons mt-4">
+        <button id="editRequestBtn" class="button is-warning is-fullwidth">
+          <span class="icon"><i class="fas fa-edit"></i></span>
+          <span>Редагувати запит</span>
+        </button>
+        
+        <button id="deleteRequestBtn" class="button is-danger is-outlined is-fullwidth">
+          <span class="icon"><i class="fas fa-trash"></i></span>
+          <span>Видалити запит</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Update status functionality
+    const statusSelect = document.getElementById('statusSelect');
+    const updateStatusBtn = document.getElementById('updateStatusBtn');
+    
+    updateStatusBtn.addEventListener('click', async function() {
+      if (!statusSelect.value) return;
+      
+      try {
+        updateStatusBtn.classList.add('is-loading');
+        
+        const response = await fetch(`/blood-requests/{{ blood_request.id }}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            status: statusSelect.value
+          })
+        });
+        
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          const data = await response.json();
+          alert(`Помилка: ${data.detail || 'Не вдалося оновити статус'}`);
+        }
+      } catch (error) {
+        console.error('Error updating status:', error);
+        alert('Сталася помилка при оновленні статусу');
+      } finally {
+        updateStatusBtn.classList.remove('is-loading');
+      }
+    });
+    
+    // Edit request button
+    const editRequestBtn = document.getElementById('editRequestBtn');
+    editRequestBtn.addEventListener('click', function() {
+      window.location.href = `/pages/hospital_staff/edit-blood-request/{{ blood_request.id }}`;
+    });
+    
+    // Delete request button
+    const deleteRequestBtn = document.getElementById('deleteRequestBtn');
+    deleteRequestBtn.addEventListener('click', async function() {
+      if (!confirm('Ви впевнені, що хочете видалити цей запит? Ця дія незворотна.')) {
+        return;
+      }
+      
+      try {
+        deleteRequestBtn.classList.add('is-loading');
+        
+        const response = await fetch(`/blood-requests/{{ blood_request.id }}`, {
+          method: 'DELETE'
+        });
+        
+        if (response.ok) {
+          window.location.href = '/pages/hospital_staff/blood-requests';
+        } else {
+          const data = await response.json();
+          alert(`Помилка: ${data.detail || 'Не вдалося видалити запит'}`);
+        }
+      } catch (error) {
+        console.error('Error deleting request:', error);
+        alert('Сталася помилка при видаленні запиту');
+      } finally {
+        deleteRequestBtn.classList.remove('is-loading');
+      }
+    });
+  });
+</script>
+{% endblock %}
