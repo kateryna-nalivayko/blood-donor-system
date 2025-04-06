@@ -271,7 +271,10 @@ endblock %} {% block head %}
             Запити на кров не знайдено. Спробуйте змінити фільтри або створіть
             новий запит.
           </p>
-          <a href="/pages/create-blood-request" class="button is-danger mt-3">
+          <a
+            href="/pages/hospital_staff/create-blood-request"
+            class="button is-danger mt-3"
+          >
             <span class="icon"><i class="fas fa-plus"></i></span>
             <span>Створити запит</span>
           </a>
@@ -392,9 +395,9 @@ endblock %} {% block head %}
         const canEdit = ["pending", "approved"].includes(request.status);
 
         row.innerHTML = `
-                <td><a href="/pages/hospital_staff/blood-requests/${request.id}">#${
-          request.id
-        }</a></td>
+                <td><a href="/pages/hospital_staff/blood-requests/${
+                  request.id
+                }">#${request.id}</a></td>
                 <td>${request.blood_type}</td>
                 <td>${request.amount_needed_ml} мл</td>
                 <td>

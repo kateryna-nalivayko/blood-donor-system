@@ -86,7 +86,7 @@ Donor System{% endblock %} {% block head %}
         <figure class="image is-96x96 is-inline-block">
           <img
             class="is-rounded"
-            src="https://bulma.io/images/placeholders/128x128.png"
+            src="/static/images/donation.png"
             alt="Profile picture"
           />
         </figure>
@@ -393,7 +393,10 @@ Donor System{% endblock %} {% block head %}
       </div>
 
       <div class="has-text-centered mt-4">
-        <a href="/pages/blood-requests" class="button is-danger is-light">
+        <a
+          href="/pages/hospital_staff/blood-requests"
+          class="button is-danger is-light"
+        >
           <span class="icon"><i class="fas fa-list"></i></span>
           <span>Переглянути всі запити</span>
         </a>
@@ -404,7 +407,10 @@ Donor System{% endblock %} {% block head %}
           Поки що немає жодних запитів на кров. Створіть новий запит, щоб
           розпочати.
         </p>
-        <a href="/pages/create-blood-request" class="button is-danger mt-3">
+        <a
+          href="/pages/hospital_staff/create-blood-request"
+          class="button is-danger mt-3"
+        >
           <span class="icon"><i class="fas fa-plus"></i></span>
           <span>Створити запит</span>
         </a>

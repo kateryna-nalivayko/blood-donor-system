@@ -126,6 +126,7 @@ class BloodRequestUpdate(BaseModel):
         return v
     
     model_config = {
+        "from_attributes": True,
         "json_schema_extra": {
             "example": {
                 "urgency_level": 5,

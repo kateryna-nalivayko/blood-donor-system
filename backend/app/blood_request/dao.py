@@ -75,21 +75,37 @@ class BloodRequestDAO(BaseDAO):
             return result.scalars().all()
     
     @classmethod
-    async def update(cls, id: int, **values):
-        """Update a blood request by id"""
+    async def update(cls, request_id, **values):
+        """Update a blood request by ID and return the updated instance with relationships loaded"""
         async with async_session_maker() as session:
-            instance = await session.get(cls.model, id)
+            # Get the blood request with ID
+            stmt = select(cls.model).options(
+                selectinload(cls.model.donations),
+                joinedload(cls.model.staff),
+                joinedload(cls.model.hospital)
+            ).where(cls.model.id == request_id)
+            
+            result = await session.execute(stmt)
+            instance = result.scalar_one_or_none()
             
             if not instance:
                 return None
-                
+            
+            # Update the instance with the provided values
             for key, value in values.items():
                 setattr(instance, key, value)
             
+            # Commit the changes
             await session.commit()
-            await session.refresh(instance)
             
-            await session.refresh(instance, ["donations"])
+            # Refresh the instance with the updated values and ensure relationships are loaded
+            await session.refresh(instance, ["donations", "staff", "hospital"])
+            
+            # Access computed properties to ensure they're calculated with relationships loaded
+            _ = instance.collected_amount_ml
+            _ = instance.fulfillment_percentage
+            _ = instance.days_until_needed
+            _ = instance.is_fulfilled
             
             return instance
     

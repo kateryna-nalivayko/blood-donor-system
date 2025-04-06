@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Редагування запиту на кров #{{ blood_request.id }} - Blood Donor System{% endblock %}
+
+{% block head %}
+<style>
+  .blood-type-badge {
+    display: inline-block;
+    width: 3em;
+    height: 3em;
+    border-radius: 50%;
+    background-color: #cc0f35;
+    color: white;
+    text-align: center;
+    line-height: 3em;
+    font-weight: bold;
+    font-size: 1.5rem;
+  }
+  .urgency-1 { background-color: #3273dc; }
+  .urgency-2 { background-color: #48c774; }
+  .urgency-3 { background-color: #ffdd57; color: rgba(0, 0, 0, 0.7); }
+  .urgency-4 { background-color: #ff9c27; }
+  .urgency-5 { background-color: #f14668; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+  <div class="column is-one-quarter">
+    <div class="box">
+      <div class="has-text-centered mb-4">
+        <figure class="image is-96x96 is-inline-block">
+          <img src="/static/images/donation.png" alt="Hospital Staff Profile" class="is-rounded">
+        </figure>
+        <p class="title is-5 mt-2">{{ user.first_name }} {{ user.last_name }}</p>
+        <div class="tags is-centered">
+          <span class="tag is-danger">{{ staff.role }}</span>
+          <span class="tag is-info">{{ staff.department }}</span>
+        </div>
+        <p class="subtitle is-6">{{ hospital.name }}</p>
+      </div>
+      
+      <aside class="menu">
+        <p class="menu-label">Панель управління</p>
+        <ul class="menu-list">
+          <li><a href="/pages/hospital_staff/dashboard">
+            <span class="icon"><i class="fas fa-tachometer-alt"></i></span>
+            <span>Головна сторінка</span>
+          </a></li>
+        </ul>
+        
+        <p class="menu-label">Запити крові</p>
+        <ul class="menu-list">
+          <li><a href="/pages/hospital_staff/blood-requests">
+            <span class="icon"><i class="fas fa-list"></i></span>
+            <span>Всі запити</span>
+          </a></li>
+          <li><a href="/pages/hospital_staff/create-blood-request">
+            <span class="icon"><i class="fas fa-plus"></i></span>
+            <span>Новий запит</span>
+          </a></li>
+          <li><a href="/pages/hospital_staff/blood-requests?urgent=true">
+            <span class="icon"><i class="fas fa-exclamation-circle"></i></span>
+            <span>Термінові запити</span>
+          </a></li>
+        </ul>
+        
+        <p class="menu-label">Донації</p>
+        <ul class="menu-list">
+          <li><a href="/pages/hospital_staff/blood-requests?status=fulfilled">
+            <span class="icon"><i class="fas fa-heartbeat"></i></span>
+            <span>Отримані донації</span>
+          </a></li>
+        </ul>
+        
+        <p class="menu-label">Налаштування</p>
+        <ul class="menu-list">
+          <li><a href="/pages/profile">
+            <span class="icon"><i class="fas fa-user-circle"></i></span>
+            <span>Мій профіль</span>
+          </a></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <div class="column">
+    <div class="box">
+      <nav class="breadcrumb" aria-label="breadcrumbs">
+        <ul>
+          <li><a href="/pages/hospital_staff/dashboard">Панель керування</a></li>
+          <li><a href="/pages/hospital_staff/blood-requests">Запити на кров</a></li>
+          <li><a href="/pages/hospital_staff/blood-requests/{{ blood_request.id }}">Запит #{{ blood_request.id }}</a></li>
+          <li class="is-active"><a href="#" aria-current="page">Редагування</a></li>
+        </ul>
+      </nav>
+
+      <h1 class="title has-text-danger">
+        <span class="icon"><i class="fas fa-edit"></i></span>
+        <span>Редагування запиту на кров #{{ blood_request.id }}</span>
+      </h1>
+
+      <form id="edit-blood-request-form">
+        <div class="columns is-multiline">
+          <div class="column is-6">
+            <div class="field">
+              <label class="label">Група крові*</label>
+              <div class="control">
+                <div class="select is-fullwidth">
+                  <select name="blood_type" id="blood_type" required>
+                    {% for type in blood_types %}
+                    <option value="{{ type }}" {% if blood_request.blood_type == type %}selected{% endif %}>{{ type }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="column is-6">
+            <div class="field">
+              <label class="label">Кількість крові (мл)*</label>
+              <div class="control">
+                <input class="input" type="number" name="amount_needed_ml" id="amount_needed_ml" 
+                      min="100" max="10000" required
+                      value="{{ blood_request.amount_needed_ml }}"
+                      placeholder="Введіть кількість у мілілітрах">
+              </div>
+              <p class="help">Мінімум 100 мл, максимум 10000 мл</p>
+            </div>
+          </div>
+          
+          <div class="column is-6">
+            <div class="field">
+              <label class="label">Терміновість*</label>
+              <div class="control">
+                <div class="select is-fullwidth">
+                  <select name="urgency_level" id="urgency_level" required>
+                    <option value="1" {% if blood_request.urgency_level == 1 %}selected{% endif %}>1 - Найнижча (планова потреба)</option>
+                    <option value="2" {% if blood_request.urgency_level == 2 %}selected{% endif %}>2 - Низька</option>
+                    <option value="3" {% if blood_request.urgency_level == 3 %}selected{% endif %}>3 - Середня</option>
+                    <option value="4" {% if blood_request.urgency_level == 4 %}selected{% endif %}>4 - Висока</option>
+                    <option value="5" {% if blood_request.urgency_level == 5 %}selected{% endif %}>5 - Критична (негайна потреба)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="column is-6">
+            <div class="field">
+              <label class="label">Потрібно до дати</label>
+              <div class="control">
+                <input class="input" type="date" name="needed_by_date" id="needed_by_date" 
+                      value="{{ blood_request.needed_by_date.strftime('%Y-%m-%d') if blood_request.needed_by_date else '' }}">
+              </div>
+              <p class="help">Залиште порожнім, якщо немає конкретної дати</p>
+            </div>
+          </div>
+          
+          <div class="column is-12">
+            <div class="field">
+              <label class="label">Інформація про пацієнта</label>
+              <div class="control">
+                <textarea class="textarea" name="patient_info" id="patient_info" 
+                         placeholder="Опишіть інформацію про пацієнта (необов'язково)"
+                         rows="3">{{ blood_request.patient_info or '' }}</textarea>
+              </div>
+              <p class="help">Ця інформація не буде видима донорам</p>
+            </div>
+          </div>
+          
+          <div class="column is-12">
+            <div class="field">
+              <label class="label">Примітки</label>
+              <div class="control">
+                <textarea class="textarea" name="notes" id="notes" 
+                         placeholder="Додаткова інформація (необов'язково)"
+                         rows="3">{{ blood_request.notes or '' }}</textarea>
+              </div>
+            </div>
+          </div>
+          
+          <div class="column is-12">
+            <div class="field">
+              <div class="notification is-warning is-light">
+                <p><strong>Увага!</strong> Редагування запиту може вплинути на його видимість для донорів.</p>
+                <p>Для зміни тільки статусу запиту, поверніться на сторінку деталей і використайте функцію "Змінити статус".</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="column is-12">
+            <div class="field is-grouped is-grouped-centered">
+              <div class="control">
+                <button type="button" id="submit-edit-btn" class="button is-warning is-medium">
+                  <span class="icon"><i class="fas fa-save"></i></span>
+                  <span>Зберегти зміни</span>
+                </button>
+              </div>
+              <div class="control">
+                <a href="/pages/hospital_staff/blood-requests/{{ blood_request.id }}" class="button is-light is-medium">
+                  Скасувати
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('edit-blood-request-form');
+  const submitButton = document.getElementById('submit-edit-btn');
+
+  submitButton.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    
+    submitButton.classList.add('is-loading');
+    submitButton.disabled = true;
+    
+    // Build the update payload with only changed fields
+    const formData = {};
+    
+    // Blood type 
+    const bloodType = document.getElementById('blood_type').value;
+    if (bloodType !== '{{ blood_request.blood_type }}') {
+      formData.blood_type = bloodType;
+    }
+    
+    // Amount needed
+    const amountNeeded = parseInt(document.getElementById('amount_needed_ml').value, 10);
+    if (amountNeeded !== {{ blood_request.amount_needed_ml }}) {
+      formData.amount_needed_ml = amountNeeded;
+    }
+    
+    // Urgency level
+    const urgencyLevel = parseInt(document.getElementById('urgency_level').value, 10);
+    if (urgencyLevel !== {{ blood_request.urgency_level }}) {
+      formData.urgency_level = urgencyLevel;
+    }
+    
+    // Needed by date
+    const neededByDateEl = document.getElementById('needed_by_date');
+    const neededByDateValue = neededByDateEl.value;
+    const originalDate = '{{ blood_request.needed_by_date.strftime("%Y-%m-%d") if blood_request.needed_by_date else "" }}';
+    
+    if (neededByDateValue !== originalDate) {
+      if (neededByDateValue) {
+        formData.needed_by_date = new Date(neededByDateValue).toISOString();
+      } else {
+        formData.needed_by_date = null;
+      }
+    }
+    
+    // Patient info
+    const patientInfo = document.getElementById('patient_info').value;
+    const originalPatientInfo = `{{ blood_request.patient_info or '' }}`;
+    if (patientInfo !== originalPatientInfo) {
+      formData.patient_info = patientInfo;
+    }
+    
+    // Notes
+    const notes = document.getElementById('notes').value;
+    const originalNotes = `{{ blood_request.notes or '' }}`;
+    if (notes !== originalNotes) {
+      formData.notes = notes;
+    }
+    
+    // Only send request if there are changes
+    if (Object.keys(formData).length === 0) {
+      alert('Немає змін для збереження');
+      submitButton.classList.remove('is-loading');
+      submitButton.disabled = false;
+      return;
+    }
+    
+    console.log('Sending update with data:', formData);
+    
+    try {
+      const response = await fetch('/blood-requests/{{ blood_request.id }}', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        window.location.href = `/pages/hospital_staff/blood-requests/${data.id}`;
+      } else {
+        const errorData = await response.json();
+        let errorMessage = 'Не вдалося оновити запит';
+        
+        if (errorData.detail) {
+          if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail;
+          } else if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail.map(err => `${err.loc.join('.')} - ${err.msg}`).join('\n');
+          }
+        }
+        
+        alert(`Помилка: ${errorMessage}`);
+        submitButton.classList.remove('is-loading');
+        submitButton.disabled = false;
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Сталася помилка при відправці запиту. Будь ласка, спробуйте ще раз.');
+      submitButton.classList.remove('is-loading');
+      submitButton.disabled = false;
+    }
+  });
+});
+</script>
+{% endblock %}

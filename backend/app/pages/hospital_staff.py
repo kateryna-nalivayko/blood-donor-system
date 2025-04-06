@@ -196,3 +196,47 @@ async def blood_request_detail_page(
             "donations": blood_request.donations if blood_request.donations else []
         }
     )
+
+
+@router.get("/edit-blood-request/{request_id}", name="edit_blood_request_page")
+async def edit_blood_request_page(
+    request: Request,
+    request_id: int,
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """Edit a specific blood request"""
+    staff_profile = await HospitalStaffDAO.find_one_or_none(user_id=current_user.id)
+    
+    if not staff_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hospital staff profile not found"
+        )
+    
+    hospital = await HospitalDAO.find_one_or_none(id=staff_profile.hospital_id)
+    
+    blood_request = await BloodRequestDAO.find_one_or_none(id=request_id)
+    
+    if not blood_request or blood_request.hospital_id != staff_profile.hospital_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Blood request not found"
+        )
+    
+    if blood_request.status not in ["pending", "approved"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot edit a blood request with status '{blood_request.status}'"
+        )
+    
+    return templates.TemplateResponse(
+        "hospital_staff/edit_request.html",
+        {
+            "request": request,
+            "user": current_user,
+            "staff": staff_profile,
+            "hospital": hospital,
+            "blood_request": blood_request,
+            "blood_types": [bt.value for bt in BloodType]
+        }
+    )

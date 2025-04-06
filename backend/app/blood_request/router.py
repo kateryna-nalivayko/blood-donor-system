@@ -252,44 +252,60 @@ async def update_blood_request(
     current_user: User = Depends(get_current_hospital_staff)
 ):
     """
-    Update a blood request.
+    Update an existing blood request.
     
-    Args:
-        request_id: ID of the blood request to update
-        request_data: Updated blood request details
-        
-    Returns:
-        The updated blood request
-        
-    Raises:
-        404: If the blood request doesn't exist
-        403: If user doesn't have permission to update the request
-        400: If the request status doesn't allow updates
+    Only the hospital staff who created the request or an admin can update it.
+    Updates are only allowed for requests with status pending or approved.
     """
+    # Get the staff profile to check hospital association
+    staff_profile = await HospitalStaffDAO.find_one_or_none(user_id=current_user.id)
+    if not staff_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hospital staff profile not found"
+        )
+
+    # Find the blood request
     blood_request = await BloodRequestDAO.find_one_or_none(id=request_id)
-    
     if not blood_request:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Blood request with ID {request_id} not found"
+            detail=f"Blood request with id {request_id} not found"
         )
     
-    if not current_user.is_admin:
-        staff_profile = await HospitalStaffDAO.find_one_or_none(user_id=current_user.id)
-        if not staff_profile or blood_request.hospital_id != staff_profile.hospital_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only update blood requests for your own hospital"
-            )
+    # Check if user has permission to update this request
+    if blood_request.hospital_id != staff_profile.hospital_id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to update this blood request"
+        )
     
-    if blood_request.status not in ["pending", "approved"]:
+    # Check if request can be updated based on status
+    allowed_statuses = ["pending", "approved"]
+    if blood_request.status.lower() not in allowed_statuses:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot update a blood request with status '{blood_request.status}'"
         )
     
-    update_data = {k: v for k, v in request_data.model_dump().items() if v is not None}
+    # Prepare update data by filtering out None values
+    update_data = request_data.model_dump(exclude_unset=True, exclude_none=True)
+    
+    # Check if there's anything to update
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid update data provided"
+        )
+    
+    # Update the blood request - pass the request_id directly, not a clause
     updated_request = await BloodRequestDAO.update(request_id, **update_data)
+    
+    if not updated_request:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update blood request"
+        )
     
     return updated_request
 
