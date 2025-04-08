@@ -11,12 +11,11 @@ async def register_page(request: Request):
     """
     Render the user registration page.
     """
-    return templates.TemplateResponse("auth/register_form.html", {"request": request})
-
+    return templates.TemplateResponse(request, "auth/register_form.html")
 
 @router.get("/login", name="login_page")
 async def login_page(request: Request):
-    return templates.TemplateResponse("auth/login_form.html", {"request": request})
+    return templates.TemplateResponse(request, "auth/login_form.html")
 
 
 @router.get("/profile", name="profile_page")
@@ -25,6 +24,8 @@ async def profile_page(request: Request, current_user: User = Depends(get_curren
     Render the user profile page.
     Requires authenticated user.
     """
-    return templates.TemplateResponse("auth/profile.html", 
-                                     {"request": request, 
-                                      "user": current_user})
+    return templates.TemplateResponse(
+        request,
+        "auth/profile.html", 
+        {"user": current_user}
+    )
