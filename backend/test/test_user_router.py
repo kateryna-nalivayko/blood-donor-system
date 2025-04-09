@@ -93,3 +93,17 @@ async def test_login_user(client, mock_users_dao, monkeypatch):
     assert response.status_code == 200
     assert "access_token" in response.json()
     assert "User test@example.com successfully logged in" in response.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_logout_user(client):
+    """Test user logout endpoint successfully deletes access token cookie"""
+    
+    response = await client.post("/auth/logout/")
+    
+    assert response.status_code == status.HTTP_200_OK
+    
+    assert response.json() == {"message": "User successfully logged out!"}
+    
+    cookie_header = response.headers.get("set-cookie", "")
+    assert "user_access_token=" in cookie_header
