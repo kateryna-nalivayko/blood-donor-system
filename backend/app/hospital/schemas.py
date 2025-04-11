@@ -12,7 +12,7 @@ class HospitalBase(BaseModel):
     country: str = Field("Ukraine", description="Country where the hospital is located")
     phone_number: Optional[str] = Field(None, description="Contact phone number")
     email: Optional[EmailStr] = Field(None, description="Contact email address")
-    website: Optional[HttpUrl] = Field(None, description="Hospital website URL")
+    website: Optional[str] = Field(None, description="Hospital website URL", pattern=r"^https?://.*")
 
 class HospitalCreate(HospitalBase):
     """Schema for creating a new hospital"""
