@@ -67,14 +67,14 @@ async def generate_test_data(
                 user_id=user.id,
                 hospital_id=hospital.id
             )
-            # Update user flags
+
             user.is_hospital_staff = True
             staff_members.append(staff)
             
-        # Commit to ensure all base entities are saved
+
         await session.commit()
             
-        # Step 5: Create blood requests
+
         print("Creating blood requests...")
         requests = []
         for staff in staff_members:
