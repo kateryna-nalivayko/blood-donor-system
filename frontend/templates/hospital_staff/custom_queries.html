@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Пошук донорів - Blood Donor System{% endblock %}
+
+{% block content %}
+<div class="columns">
+  <!-- Sidebar (simplified) -->
+  <div class="column is-one-quarter">
+    <div class="box">
+      <aside class="menu">
+        <p class="menu-label">Панель керування</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/hospital_staff/dashboard">
+              <span class="icon"><i class="fas fa-home"></i></span>
+              <span>Головна</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/blood-requests">
+              <span class="icon"><i class="fas fa-tint"></i></span>
+              <span>Запити на кров</span>
+            </a>
+          </li>
+        </ul>
+
+        <p class="menu-label">Звіти</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/hospital_staff/reports">
+              <span class="icon"><i class="fas fa-chart-bar"></i></span>
+              <span>Статистика запитів</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/custom-queries" class="is-active">
+              <span class="icon"><i class="fas fa-database"></i></span>
+              <span>Користувацькі запити</span>
+            </a>
+          </li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main Content Area - Focus on the single query -->
+  <div class="column">
+    <div class="box">
+      <h1 class="title has-text-danger">
+        <span class="icon"><i class="fas fa-database"></i></span>
+        <span>Пошук донорів за групою крові</span>
+      </h1>
+      <p class="subtitle">Пошук донорів з певною групою крові та мінімальною кількістю донацій</p>
+
+      <div class="notification is-light">
+        <p>Цей запит дозволяє знайти донорів з обраною групою крові, які зробили принаймні визначену кількість донацій.</p>
+      </div>
+
+      <!-- Query Form -->
+      <div class="box">
+        <h3 class="subtitle has-text-danger">
+          <span class="icon"><i class="fas fa-tint"></i></span>
+          <span>Параметри пошуку</span>
+        </h3>
+        
+        <form id="donor-search-form">
+          <div class="field">
+            <label class="label">Група крові</label>
+            <div class="control">
+              <div class="select">
+                <select name="blood_type" required>
+                  <option value="">Виберіть групу крові</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">Мінімальна кількість донацій</label>
+            <div class="control">
+              <input class="input" type="number" name="min_donations" min="1" value="1" required>
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">Максимальна кількість результатів</label>
+            <div class="control">
+              <input class="input" type="number" name="limit" min="1" max="1000" value="100" required>
+            </div>
+          </div>
+          <div class="field">
+            <div class="control">
+              <button type="submit" class="button is-danger">
+                <span class="icon"><i class="fas fa-search"></i></span>
+                <span>Виконати запит</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+      
+      <!-- Results Section -->
+      <div id="query-results" class="mt-5" style="display: none;">
+        <h3 class="subtitle">Результати пошуку</h3>
+        <div id="results-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchForm = document.getElementById('donor-search-form');
+  const resultsContainer = document.getElementById('query-results');
+  const resultsContent = document.getElementById('results-content');
+  
+
+  searchForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+    
+    for (const [key, value] of formData.entries()) {
+      params.append(key, value);
+    }
+    
+    const url = `/donors/query/by-blood-type-min-donations?${params.toString()}`;
+    
+    // Show loading indicator
+    resultsContent.innerHTML = `
+      <div class="has-text-centered">
+        <span class="icon is-large">
+          <i class="fas fa-spinner fa-pulse fa-2x"></i>
+        </span>
+        <p>Завантаження результатів...</p>
+      </div>
+    `;
+    resultsContainer.style.display = 'block';
+    
+    fetch(url, {
+      headers: {
+        'Accept': 'application/json'
+      },
+      credentials: 'same-origin' //
+    })
+    .then(response => {
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Необхідна авторизація. Будь ласка, увійдіть в систему.');
+        }
+        throw new Error(`Помилка запиту: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      resultsContainer.style.display = 'block';
+      displayResults(data);
+    })
+    .catch(error => {
+      resultsContent.innerHTML = `
+        <div class="notification is-danger">
+          <button class="delete" onclick="this.parentNode.style.display='none'"></button>
+          ${error.message}
+        </div>
+      `;
+    });
+  });
+  
+  // Display formatted results
+  function displayResults(data) {
+    if (data.length === 0) {
+      resultsContent.innerHTML = `
+        <div class="notification is-info">
+          <button class="delete" onclick="this.parentNode.style.display='none'"></button>
+          Немає результатів для заданих параметрів.
+        </div>
+      `;
+      return;
+    }
+    
+    let html = `
+      <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Ім'я</th>
+              <th>Email</th>
+              <th>Телефон</th>
+              <th>Група крові</th>
+              <th>К-сть донацій</th>
+              <th>Об'єм (мл)</th>
+              <th>Остання донація</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    data.forEach(donor => {
+      html += `
+        <tr>
+          <td>${donor.donor_id}</td>
+          <td>${donor.first_name} ${donor.last_name}</td>
+          <td>${donor.email || '-'}</td>
+          <td>${donor.phone_number || '-'}</td>
+          <td><span class="tag is-danger">${donor.blood_type}</span></td>
+          <td>${donor.donation_count}</td>
+          <td>${donor.total_donated_ml || 0} мл</td>
+          <td>${donor.last_donation_date ? new Date(donor.last_donation_date).toLocaleDateString('uk-UA') : '-'}</td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <div class="notification is-light mt-4">
+        <p>Знайдено донорів: <strong>${data.length}</strong></p>
+      </div>
+    `;
+    
+    resultsContent.innerHTML = html;
+  }
+});
+</script>
+{% endblock %}

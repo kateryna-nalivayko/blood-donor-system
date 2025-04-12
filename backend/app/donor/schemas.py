@@ -92,6 +92,30 @@ class DonorEligibilityUpdate(BaseModel):
             }
         }
 
+class DonorBloodTypeQueryParams(BaseModel):
+    blood_type: str = Field(..., description="Blood type to filter by")
+    min_donations: int = Field(1, description="Minimum number of donations required", ge=1)
+    limit: int = Field(100, description="Maximum number of results", le=1000)
+    
+    @field_validator('blood_type')
+    def validate_blood_type(cls, v):
+        try:
+            BloodType(v)
+            return v
+        except ValueError:
+            valid_types = [t.value for t in BloodType]
+            raise ValueError(f"Invalid blood type. Must be one of: {', '.join(valid_types)}")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "blood_type": "O+",
+                "min_donations": 2,
+                "limit": 50
+            }
+        }
+    }
+
 
 class DonorProfileResponse(BaseModel):
     id: int
@@ -167,3 +191,33 @@ class DonorEligibilityResponse(BaseModel):
                 "message": "You are eligible to donate blood."
             }
         }
+
+
+class DonorWithDonationsResponse(BaseModel):
+    user_id: int
+    first_name: str
+    last_name: str
+    email: str
+    phone_number: Optional[str] = None
+    donor_id: int
+    blood_type: str
+    donation_count: int
+    total_donated_ml: int
+    last_donation_date: Optional[datetime] = None
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "user_id": 42,
+                "first_name": "John",
+                "last_name": "Doe",
+                "email": "john.doe@example.com",
+                "phone_number": "+380991234567",
+                "donor_id": 15,
+                "blood_type": "A+",
+                "donation_count": 5,
+                "total_donated_ml": 2250,
+                "last_donation_date": "2025-03-15T14:30:00"
+            }
+        }
+    }

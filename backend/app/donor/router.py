@@ -1,10 +1,11 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, status
-from app.donor.schemas import DonorEligibilityUpdate, DonorProfileCreate, DonorProfileResponse
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from app.donor.schemas import DonorBloodTypeQueryParams, DonorEligibilityUpdate, DonorProfileCreate, DonorProfileResponse, DonorWithDonationsResponse
 from app.donor.dao import DonorDAO
 from app.users.dao import UsersDAO
 from app.users.models import User
-from app.users.dependencies import get_admin_or_hospital_staff, get_current_admin_user, get_current_user
+from app.users.dependencies import get_admin_or_hospital_staff, get_current_admin_user, get_current_hospital_staff, get_current_user
 
 
 router = APIRouter(prefix='/donors', tags=['Donors'])
@@ -279,3 +280,22 @@ async def check_my_eligibility(current_user: User = Depends(get_current_user)):
     }
     
     return response
+
+
+@router.get("/query/by-blood-type-min-donations", response_model=List[DonorWithDonationsResponse])
+async def get_donors_by_blood_type_min_donations(
+    query_params: DonorBloodTypeQueryParams = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """Query donors with specific blood type who have made at least the minimum number of donations"""
+    
+    donors = await DonorDAO.find_donors_by_blood_type_min_donations(
+        blood_type=query_params.blood_type,
+        min_donations=query_params.min_donations,
+        limit=query_params.limit
+    )
+    
+    if not donors:
+        return []
+    
+    return donors

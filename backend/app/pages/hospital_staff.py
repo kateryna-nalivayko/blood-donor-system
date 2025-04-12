@@ -176,8 +176,7 @@ async def blood_request_detail_page(
     # Get hospital details separately to avoid detached instance error
     hospital = await HospitalDAO.find_one_or_none(id=staff_profile.hospital_id)
     
-    # Get blood request with relationships loaded
-    blood_request = await BloodRequestDAO.find_one_with_staff(id=request_id)
+    blood_request = await BloodRequestDAO.find_one_with_all_relations(request_id)
     
     if not blood_request or blood_request.hospital_id != staff_profile.hospital_id:
         raise HTTPException(
@@ -238,5 +237,31 @@ async def edit_blood_request_page(
             "hospital": hospital,
             "blood_request": blood_request,
             "blood_types": [bt.value for bt in BloodType]
+        }
+    )
+
+
+
+@router.get("/custom-queries", name="Custom queries")
+async def custom_queries_page(
+    request: Request,
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    staff_profile = await HospitalStaffDAO.find_one_or_none(
+        user_id=current_user.id,
+    )
+
+    if not staff_profile:
+        raise HTTPException(status_code=404, detail="Hospital staff profile not found")
+
+    hospital = await HospitalDAO.find_one_or_none(id=staff_profile.hospital_id)
+
+    return templates.TemplateResponse(
+        "hospital_staff/custom_queries.html", 
+        {
+            "request": request,
+            "user": current_user,
+            "staff": staff_profile,
+            "hospital": hospital,
         }
     )

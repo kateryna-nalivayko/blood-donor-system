@@ -9,6 +9,8 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import selectinload
 from app.database import async_session_maker
+from app.donation.models import Donation
+from app.donor.models import Donor
 
 
 class BloodRequestDAO(BaseDAO):
@@ -252,6 +254,19 @@ class BloodRequestDAO(BaseDAO):
                 # Load the hospital relationship
                 joinedload(cls.model.hospital)
             ).filter_by(**filter_by)
+            
+            result = await session.execute(query)
+            return result.scalar_one_or_none()
+        
+    @classmethod
+    async def find_one_with_all_relations(cls, request_id: int):
+        """Find blood request with all nested relationships for detail page"""
+        async with async_session_maker() as session:
+            query = select(cls.model).options(
+                selectinload(cls.model.donations).selectinload(Donation.donor).selectinload(Donor.user),
+                joinedload(cls.model.staff),
+                joinedload(cls.model.hospital)
+            ).where(cls.model.id == request_id)
             
             result = await session.execute(query)
             return result.scalar_one_or_none()

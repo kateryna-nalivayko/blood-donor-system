@@ -154,8 +154,12 @@
           <tr>
             <td>#{{ donation.id }}</td>
             <td>
-              {% if donation.donor and donation.donor.user %}
-                {{ donation.donor.user.first_name }} {{ donation.donor.user.last_name }}
+              {% if donation.donor %}
+                {% if donation.donor.user %}
+                  {{ donation.donor.user.first_name }} {{ donation.donor.user.last_name }}
+                {% else %}
+                  Донор #{{ donation.donor.id }}
+                {% endif %}
               {% else %}
                 Невідомий донор
               {% endif %}
