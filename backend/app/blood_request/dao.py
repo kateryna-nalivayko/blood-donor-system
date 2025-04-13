@@ -1,10 +1,10 @@
 from app.dao.base import BaseDAO
 from app.blood_request.models import BloodRequest
 from app.database import async_session_maker
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, text
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from app.common.enums import RequestStatus
+from app.common.enums import BloodType, RequestStatus
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import selectinload
 from sqlalchemy.orm import selectinload
@@ -247,11 +247,8 @@ class BloodRequestDAO(BaseDAO):
         """Find one blood request with all relationships eager loaded"""
         async with async_session_maker() as session:
             query = select(cls.model).options(
-                # Load the donations relationship
                 selectinload(cls.model.donations),
-                # Load the staff relationship
                 joinedload(cls.model.staff),
-                # Load the hospital relationship
                 joinedload(cls.model.hospital)
             ).filter_by(**filter_by)
             
@@ -270,3 +267,178 @@ class BloodRequestDAO(BaseDAO):
             
             result = await session.execute(query)
             return result.scalar_one_or_none()
+        
+    @classmethod
+    async def find_hospitals_with_shortages(
+        cls,
+        blood_type: str,
+        fulfillment_percentage: float = 50.0,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Find hospitals with blood requests of a specific type that don't have enough donations.
+        
+        Args:
+            blood_type: Blood type to filter by
+            fulfillment_percentage: Maximum fulfillment percentage to be considered a shortage
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of hospitals with blood shortages
+        """
+        blood_type_enum = None
+        for bt in BloodType:
+            if bt.value == blood_type:
+                blood_type_enum = bt.name
+                break
+                
+        if not blood_type_enum:
+            return []
+        
+        async with async_session_maker() as session:
+            query = text("""
+            WITH request_donations AS (
+                SELECT 
+                    br.id AS request_id,
+                    COALESCE(SUM(don.blood_amount_ml), 0) AS total_donated
+                FROM 
+                    blood_requests br
+                LEFT JOIN 
+                    donations don ON br.id = don.blood_request_id AND don.status = 'COMPLETED'
+                WHERE 
+                    br.blood_type = :blood_type
+                    AND br.status IN ('PENDING', 'APPROVED')
+                GROUP BY 
+                    br.id
+            )
+            SELECT 
+                h.id AS hospital_id,
+                h.name AS hospital_name,
+                h.city,
+                br.id AS request_id,
+                br.blood_type,
+                br.amount_needed_ml,
+                COALESCE(rd.total_donated, 0) AS collected_ml,
+                (br.amount_needed_ml - COALESCE(rd.total_donated, 0)) AS shortage_ml,
+                COALESCE((rd.total_donated * 100.0 / NULLIF(br.amount_needed_ml, 0)), 0) AS fulfillment_percentage,
+                br.needed_by_date::date AS needed_by_date,
+                br.urgency_level
+            FROM 
+                hospitals h
+            JOIN 
+                blood_requests br ON h.id = br.hospital_id
+            JOIN
+                request_donations rd ON br.id = rd.request_id
+            WHERE 
+                br.blood_type = :blood_type
+                AND br.status IN ('PENDING', 'APPROVED')
+                AND COALESCE((rd.total_donated * 100.0 / NULLIF(br.amount_needed_ml, 0)), 0) < :fulfillment_percentage
+            ORDER BY 
+                br.urgency_level DESC,
+                br.needed_by_date ASC,
+                fulfillment_percentage ASC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "blood_type": blood_type_enum, 
+                    "fulfillment_percentage": fulfillment_percentage,
+                    "limit": limit
+                }
+            )
+            
+            shortages = []
+            for row in result.mappings():  
+                shortage_dict = dict(row)
+                for bt in BloodType:
+                    if bt.name == shortage_dict['blood_type']:
+                        shortage_dict['blood_type'] = bt.value
+                        break
+                
+                shortages.append(shortage_dict)
+                    
+            return shortages
+        
+
+    @classmethod
+    async def find_high_volume_requests(
+        cls,
+        min_volume_ml: int = 1000,
+        min_urgency: int = 3,
+        days: int = 30,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Find high-volume blood requests that meet minimum urgency level.
+        
+        Args:
+            min_volume_ml: Minimum volume of blood needed
+            min_urgency: Minimum urgency level (1-5)
+            days: Look ahead period in days
+            limit: Maximum number of results
+        """
+        async with async_session_maker() as session:
+            query = text("""
+            SELECT 
+                br.id AS request_id,
+                h.id AS hospital_id,
+                h.name AS hospital_name,
+                h.city,
+                h.region,
+                br.blood_type,
+                br.amount_needed_ml,
+                br.urgency_level,
+                COALESCE(SUM(d.blood_amount_ml), 0) AS collected_ml,
+                br.amount_needed_ml - COALESCE(SUM(d.blood_amount_ml), 0) AS remaining_ml,
+                br.needed_by_date::date AS needed_by_date,
+                CURRENT_DATE + (:days * interval '1 day') AS cutoff_date,
+                u.first_name || ' ' || u.last_name AS staff_name,
+                hs.role AS staff_role
+            FROM 
+                blood_requests br
+            JOIN 
+                hospitals h ON br.hospital_id = h.id
+            JOIN 
+                hospital_staff hs ON br.staff_id = hs.id
+            JOIN 
+                users u ON hs.user_id = u.id
+            LEFT JOIN 
+                donations d ON br.id = d.blood_request_id AND d.status = 'COMPLETED'
+            WHERE 
+                br.amount_needed_ml >= :min_volume_ml
+                AND br.urgency_level >= :min_urgency
+                AND br.status IN ('PENDING', 'APPROVED')
+                AND br.needed_by_date <= CURRENT_DATE + (:days * interval '1 day')
+            GROUP BY 
+                br.id, h.id, h.name, h.city, h.region, br.blood_type, 
+                br.amount_needed_ml, br.urgency_level, br.needed_by_date,
+                u.first_name, u.last_name, hs.role
+            ORDER BY 
+                br.urgency_level DESC, 
+                br.needed_by_date ASC, 
+                br.amount_needed_ml DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "min_volume_ml": min_volume_ml,
+                    "min_urgency": min_urgency,
+                    "days": days, 
+                    "limit": limit
+                }
+            )
+            
+            requests = []
+            for row in result.mappings():
+                request_dict = dict(row)
+                for bt in BloodType:
+                    if bt.name == request_dict['blood_type']:
+                        request_dict['blood_type'] = bt.value
+                        break
+                requests.append(request_dict)
+                    
+            return requests

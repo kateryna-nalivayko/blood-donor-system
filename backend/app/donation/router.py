@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import List, Optional
 from datetime import datetime
 
-from app.donation.schemas import DonationCreate, DonationResponse, DonationUpdate, DonationStatusUpdate
+from app.donation.schemas import DonationCreate, DonationDemographicsParams, DonationDemographicsResponse, DonationResponse, DonationStatisticsParams, DonationStatisticsResponse, DonationUpdate, DonationStatusUpdate
 from app.donation.dao import DonationDAO
 from app.donor.dao import DonorDAO
 from app.hospital.dao import HospitalDAO
 from app.blood_request.dao import BloodRequestDAO
-from app.users.dependencies import get_current_user, get_admin_or_hospital_staff
+from app.users.dependencies import get_current_hospital_staff, get_current_user, get_admin_or_hospital_staff
 from app.users.models import User
 
 
@@ -294,3 +294,46 @@ async def get_my_donations(current_user: User = Depends(get_current_user)):
     donations = await DonationDAO.get_donor_donations(donor.id)
     
     return donations
+
+
+@router.get("/query/donation-statistics", response_model=List[DonationStatisticsResponse])
+async def get_donation_statistics_by_region(
+    query_params: DonationStatisticsParams = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """Find hospital donation statistics grouped by region and blood type"""
+    
+    statistics = await HospitalDAO.find_donation_statistics_by_region(
+        min_donations=query_params.min_donations,
+        min_total_ml=query_params.min_total_ml,
+        blood_type=query_params.blood_type,
+        months=query_params.months,
+        limit=query_params.limit
+    )
+    
+    if not statistics:
+        return []
+    
+    return statistics
+
+
+@router.get("/query/demographics-analysis", response_model=List[DonationDemographicsResponse])
+async def get_donation_demographics(
+    query_params: DonationDemographicsParams = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """Analyze donation frequency by demographics"""
+    
+    demographics = await DonationDAO.analyze_donation_demographics(
+        min_age=query_params.min_age,
+        max_age=query_params.max_age,
+        min_donations=query_params.min_donations,
+        months=query_params.months,
+        group_by=query_params.group_by,
+        limit=query_params.limit
+    )
+    
+    if not demographics:
+        return []
+    
+    return demographics

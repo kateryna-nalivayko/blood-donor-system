@@ -1,9 +1,10 @@
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.hospital_staff.dao import HospitalStaffDAO
-from app.hospital_staff.schemas import HospitalStaffProfileCreate, HospitalStaffProfileResponse
+from app.hospital_staff.schemas import HospitalStaffProfileCreate, HospitalStaffProfileResponse, StaffPerformanceParams, StaffPerformanceResponse
 from app.users.dao import UsersDAO
-from app.users.dependencies import get_current_hospital_staff, get_current_user
+from app.users.dependencies import get_admin_or_hospital_staff, get_current_hospital_staff, get_current_user
 from app.users.models import User
 from app.hospital.dao import HospitalDAO
 
@@ -83,3 +84,23 @@ async def get_my_hospital_staff_profile(current_user: User = Depends(get_current
         )
     
     return donor
+
+
+@router.get("/query/staff-performance", response_model=List[StaffPerformanceResponse])
+async def get_staff_by_performance(
+    query_params: StaffPerformanceParams = Depends(),
+    current_user: User = Depends(get_admin_or_hospital_staff)
+):
+    """Find hospital staff by their blood request fulfillment rate"""
+    
+    staff = await HospitalStaffDAO.find_staff_by_performance(
+        min_requests=query_params.min_requests,
+        min_fulfillment_rate=query_params.min_fulfillment_rate,
+        months=query_params.months,
+        limit=query_params.limit
+    )
+    
+    if not staff:
+        return []
+    
+    return staff

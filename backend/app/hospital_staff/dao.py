@@ -1,9 +1,11 @@
 from app.dao.base import BaseDAO
 from app.hospital_staff.models import HospitalStaff
 from app.database import async_session_maker
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import joinedload
-from typing import Optional
+from typing import Any, Dict, List, Optional
+
+from app.common.enums import BloodType
 
 
 class HospitalStaffDAO(BaseDAO):
@@ -91,3 +93,113 @@ class HospitalStaffDAO(BaseDAO):
             
             result = await session.execute(query)
             return result.scalar_one_or_none()
+        
+
+    @classmethod
+    async def find_staff_by_performance(
+        cls,
+        min_requests: int = 5,
+        min_fulfillment_rate: float = 70.0,
+        months: int = 6,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Find hospital staff by their blood request fulfillment rate.
+        
+        Args:
+            min_requests: Minimum number of requests created
+            min_fulfillment_rate: Minimum fulfillment rate percentage
+            months: Look back period in months
+            limit: Maximum number of results
+        """
+        async with async_session_maker() as session:
+            query = text("""
+            WITH staff_stats AS (
+                SELECT
+                    hs.id AS staff_id,
+                    u.id AS user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.email,
+                    hs.role,
+                    h.id AS hospital_id,
+                    h.name AS hospital_name,
+                    COUNT(br.id) AS total_requests,
+                    SUM(CASE WHEN br.status = 'FULFILLED' THEN 1 ELSE 0 END) AS fulfilled_requests,
+                    CASE 
+                        WHEN COUNT(br.id) > 0 THEN
+                            ROUND((SUM(CASE WHEN br.status = 'FULFILLED' THEN 1 ELSE 0 END)::numeric / 
+                            COUNT(br.id)::numeric) * 100, 2)
+                        ELSE 0
+                    END AS fulfillment_rate
+                FROM
+                    hospital_staff hs
+                JOIN
+                    users u ON hs.user_id = u.id
+                JOIN
+                    hospitals h ON hs.hospital_id = h.id
+                JOIN
+                    blood_requests br ON hs.id = br.staff_id
+                WHERE
+                    br.created_at > NOW() - (:months * interval '1 month')
+                GROUP BY
+                    hs.id, u.id, u.first_name, u.last_name, u.email, hs.role, h.id, h.name
+                HAVING
+                    COUNT(br.id) >= :min_requests
+            )
+            SELECT
+                staff_id,
+                user_id,
+                first_name,
+                last_name,
+                email,
+                role,
+                hospital_id,
+                hospital_name,
+                total_requests,
+                fulfilled_requests,
+                fulfillment_rate,
+                (SELECT COUNT(DISTINCT br.blood_type) 
+                FROM blood_requests br 
+                WHERE br.staff_id = ss.staff_id 
+                AND br.created_at > NOW() - INTERVAL ':months months') AS blood_type_count,
+                (SELECT STRING_AGG(DISTINCT br.blood_type::text, ', ')
+                FROM blood_requests br 
+                WHERE br.staff_id = ss.staff_id 
+                AND br.created_at > NOW() - (:months * interval '1 month')) AS blood_types
+            FROM
+                staff_stats ss
+            WHERE
+                fulfillment_rate >= :min_fulfillment_rate
+            ORDER BY
+                fulfillment_rate DESC,
+                total_requests DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "min_requests": min_requests,
+                    "min_fulfillment_rate": min_fulfillment_rate,
+                    "months": months, 
+                    "limit": limit
+                }
+            )
+            
+            staff_list = []
+            for row in result.mappings():
+                staff_dict = dict(row)
+                if staff_dict.get('blood_types'):
+                    blood_types_list = staff_dict['blood_types'].split(', ')
+                    converted_types = []
+                    for bt_name in blood_types_list:
+                        for bt in BloodType:
+                            if bt.name == bt_name:
+                                converted_types.append(bt.value)
+                                break
+                    staff_dict['blood_types'] = ', '.join(converted_types)
+                
+                staff_list.append(staff_dict)
+                    
+            return staff_list

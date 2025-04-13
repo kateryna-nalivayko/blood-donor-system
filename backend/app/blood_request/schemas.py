@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from app.common.enums import BloodType, RequestStatus
 
 
@@ -180,3 +180,97 @@ class BloodRequestSummary(BaseModel):
             }
         }
     }
+
+
+class BloodShortageQueryParams(BaseModel):
+    blood_type: str = Field(..., description="Blood type to filter by")
+    fulfillment_percentage: float = Field(
+        50.0, 
+        description="Maximum fulfillment percentage to be considered a shortage (e.g. 50 means less than 50% fulfilled)", 
+        ge=0.0, 
+        le=100.0
+    )
+    limit: int = Field(100, description="Maximum number of results", le=1000)
+    
+    @field_validator('blood_type')
+    def validate_blood_type(cls, v):
+        try:
+            BloodType(v)
+            return v
+        except ValueError:
+            valid_types = [t.value for t in BloodType]
+            raise ValueError(f"Invalid blood type. Must be one of: {', '.join(valid_types)}")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "blood_type": "O+",
+                "fulfillment_percentage": 50.0,
+                "limit": 50
+            }
+        }
+    }
+
+class BloodShortageResponse(BaseModel):
+    hospital_id: int
+    hospital_name: str
+    city: str
+    request_id: int
+    blood_type: str
+    amount_needed_ml: int
+    collected_ml: int
+    shortage_ml: int
+    needed_by_date: date
+    fulfillment_percentage: float
+    urgency_level: int
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "hospital_id": 1,
+                "hospital_name": "City General Hospital",
+                "city": "Kyiv",
+                "request_id": 42,
+                "blood_type": "A+",
+                "amount_needed_ml": 2000,
+                "collected_ml": 800,
+                "shortage_ml": 1200,
+                "needed_by_date": "2025-05-15",
+                "fulfillment_percentage": 40.0,
+                "urgency_level": 4
+            }
+        }
+    }
+
+
+class HighVolumeRequestParams(BaseModel):
+    min_volume_ml: int = Field(1000, description="Minimum volume needed in ml", ge=100)
+    min_urgency: int = Field(3, description="Minimum urgency level", ge=1, le=5)
+    days: int = Field(30, description="Look ahead period in days", ge=1)
+    limit: int = Field(50, description="Maximum number of results", le=1000)
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "min_volume_ml": 1000,
+                "min_urgency": 3,
+                "days": 30,
+                "limit": 50
+            }
+        }
+    }
+
+class HighVolumeRequestResponse(BaseModel):
+    request_id: int
+    hospital_id: int
+    hospital_name: str
+    city: str
+    region: str
+    blood_type: str
+    amount_needed_ml: int
+    urgency_level: int
+    collected_ml: int
+    remaining_ml: int
+    needed_by_date: date
+    staff_name: str
+    staff_role: str

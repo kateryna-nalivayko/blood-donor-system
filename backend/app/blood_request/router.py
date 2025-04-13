@@ -6,7 +6,11 @@ from app.blood_request.schemas import (
     BloodRequestResponse, 
     BloodRequestUpdate, 
     BloodRequestStatusUpdate,
-    BloodRequestSummary
+    BloodRequestSummary,
+    BloodShortageQueryParams,
+    BloodShortageResponse,
+    HighVolumeRequestParams,
+    HighVolumeRequestResponse
 )
 from app.blood_request.dao import BloodRequestDAO
 from app.donation.dao import DonationDAO
@@ -426,3 +430,43 @@ async def delete_blood_request(request_id: int):
     await BloodRequestDAO.delete(id=request_id)
     
     return None
+
+
+
+@router.get("/query/hospitals-with-shortages", response_model=List[BloodShortageResponse])
+async def get_hospitals_with_blood_shortages(
+    query_params: BloodShortageQueryParams = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """Find hospitals with blood requests matching a specific blood type but not enough donations"""
+    
+    shortages = await BloodRequestDAO.find_hospitals_with_shortages(
+        blood_type=query_params.blood_type,
+        fulfillment_percentage=query_params.fulfillment_percentage,
+        limit=query_params.limit
+    )
+    
+    if not shortages:
+        return []
+    
+    return shortages
+
+
+@router.get("/query/high-volume-requests", response_model=List[HighVolumeRequestResponse])
+async def get_high_volume_requests(
+    query_params: HighVolumeRequestParams = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """Find high-volume blood requests with minimum urgency level"""
+    
+    requests = await BloodRequestDAO.find_high_volume_requests(
+        min_volume_ml=query_params.min_volume_ml,
+        min_urgency=query_params.min_urgency,
+        days=query_params.days,
+        limit=query_params.limit
+    )
+    
+    if not requests:
+        return []
+    
+    return requests

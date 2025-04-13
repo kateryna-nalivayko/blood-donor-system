@@ -279,3 +279,33 @@ class EligibleDonorResponse(BaseModel):
             }
         }
     }
+
+
+class MultiHospitalDonorParams(BaseModel):
+    min_hospitals: int = Field(2, description="Minimum number of hospitals donated at", ge=1)
+    min_donations: int = Field(3, description="Minimum number of total donations", ge=1)
+    months: int = Field(6, description="Look back period in months", ge=1)
+    limit: int = Field(50, description="Maximum number of results", le=1000)
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "min_hospitals": 2,
+                "min_donations": 3,
+                "months": 6,
+                "limit": 50
+            }
+        }
+    }
+
+class MultiHospitalDonorResponse(BaseModel):
+    donor_id: int
+    first_name: str
+    last_name: str
+    email: str
+    phone_number: Optional[str] = None
+    blood_type: str
+    hospital_count: int
+    donation_count: int
+    total_donated_ml: int
+    hospital_names: str

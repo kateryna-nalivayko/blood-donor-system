@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="columns">
-  <!-- Sidebar (simplified) -->
+  <!-- Sidebar -->
   <div class="column is-one-quarter">
     <div class="box">
       <aside class="menu">
@@ -21,6 +21,40 @@
               <span class="icon"><i class="fas fa-tint"></i></span>
               <span>Запити на кров</span>
             </a>
+          </li>
+        </ul>
+
+        <p class="menu-label">Запити</p>
+        <ul class="menu-list">
+          <li>
+            <a href="javascript:void(0)" class="query-category-link is-active" data-category="donor">
+              <span class="icon"><i class="fas fa-user"></i></span>
+              <span>Пошук донорів</span>
+            </a>
+            <ul>
+              <li><a href="javascript:void(0)" class="query-link is-active" data-target="query-donations-section">За кількістю донацій</a></li>
+              <li><a href="javascript:void(0)" class="query-link" data-target="query-eligible-section">Доступні донори</a></li>
+              <li><a href="javascript:void(0)" class="query-link" data-target="query-multi-hospital-section">Донори в різних лікарнях</a></li>
+            </ul>
+          </li>
+          <li>
+            <a href="javascript:void(0)" class="query-category-link" data-category="blood">
+              <span class="icon"><i class="fas fa-syringe"></i></span>
+              <span>Запити на кров</span>
+            </a>
+            <ul>
+              <li><a href="javascript:void(0)" class="query-link" data-target="query-shortages-section">Нестача крові</a></li>
+              <li><a href="javascript:void(0)" class="query-link" data-target="query-high-volume-section">Великі запити на кров</a></li>
+            </ul>
+          </li>
+          <li>
+            <a href="javascript:void(0)" class="query-category-link" data-category="staff">
+              <span class="icon"><i class="fas fa-user-md"></i></span>
+              <span>Персонал</span>
+            </a>
+            <ul>
+              <li><a href="javascript:void(0)" class="query-link" data-target="query-staff-performance-section">Ефективність персоналу</a></li>
+            </ul>
           </li>
         </ul>
 
@@ -48,150 +82,386 @@
     <div class="box">
       <h1 class="title has-text-danger">
         <span class="icon"><i class="fas fa-database"></i></span>
-        <span>Пошук донорів</span>
+        <span id="current-category-title">Пошук донорів</span>
       </h1>
-      <p class="subtitle">Використовуйте спеціальні запити для пошуку донорів</p>
+      <p class="subtitle" id="current-category-description">Використовуйте спеціальні запити для пошуку донорів за різними критеріями.</p>
+      
+      <!-- Query sections container -->
+      <div class="query-sections-container">
+        <!-- Query 1: Donors by Blood Type and Min Donations -->
+        <div id="query-donations-section" class="query-section">
+          <div class="notification is-light">
+            <p>Цей запит дозволяє знайти донорів з обраною групою крові, які зробили принаймні визначену кількість донацій.</p>
+          </div>
 
-      <!-- Query tabs -->
-      <div class="tabs is-boxed">
-        <ul id="query-tabs">
-          <li class="is-active" data-target="query-donations-section">
-            <a>
-              <span class="icon"><i class="fas fa-history"></i></span>
-              <span>За кількістю донацій</span>
-            </a>
-          </li>
-          <li data-target="query-eligible-section">
-            <a>
-              <span class="icon"><i class="fas fa-check-circle"></i></span>
-              <span>Доступні донори</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-
-      <!-- Query 1: Donors by Blood Type and Min Donations -->
-      <div id="query-donations-section" class="query-section">
-        <div class="notification is-light">
-          <p>Цей запит дозволяє знайти донорів з обраною групою крові, які зробили принаймні визначену кількість донацій.</p>
-        </div>
-
-        <!-- Query Form -->
-        <div class="box">
-          <h3 class="subtitle has-text-danger">
-            <span class="icon"><i class="fas fa-tint"></i></span>
-            <span>Параметри пошуку</span>
-          </h3>
-          
-          <form id="donor-search-form">
-            <div class="field">
-              <label class="label">Група крові</label>
-              <div class="control">
-                <div class="select">
-                  <select name="blood_type" required>
-                    <option value="">Виберіть групу крові</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                  </select>
+          <!-- Query Form -->
+          <div class="box">
+            <h3 class="subtitle has-text-danger">
+              <span class="icon"><i class="fas fa-tint"></i></span>
+              <span>Параметри пошуку</span>
+            </h3>
+            
+            <form id="donor-search-form" class="query-form" data-results="query-results-donations">
+              <div class="field">
+                <label class="label">Група крові</label>
+                <div class="control">
+                  <div class="select">
+                    <select name="blood_type" required>
+                      <option value="">Виберіть групу крові</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="field">
-              <label class="label">Мінімальна кількість донацій</label>
-              <div class="control">
-                <input class="input" type="number" name="min_donations" min="1" value="1" required>
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Максимальна кількість результатів</label>
-              <div class="control">
-                <input class="input" type="number" name="limit" min="1" max="1000" value="100" required>
-              </div>
-            </div>
-            <div class="field">
-              <div class="control">
-                <button type="submit" class="button is-danger">
-                  <span class="icon"><i class="fas fa-search"></i></span>
-                  <span>Виконати запит</span>
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-        
-        <!-- Results Section -->
-        <div id="query-results-donations" class="query-results mt-5" style="display: none;">
-          <h3 class="subtitle">Результати пошуку</h3>
-          <div class="results-content"></div>
-        </div>
-      </div>
-
-      <!-- Query 2: Eligible Donors by Blood Type -->
-      <div id="query-eligible-section" class="query-section" style="display: none;">
-        <div class="notification is-light">
-          <p>Цей запит дозволяє знайти доступних донорів з обраною групою крові, які не здавали кров протягом зазначеної кількості днів.</p>
-        </div>
-
-        <!-- Query Form -->
-        <div class="box">
-          <h3 class="subtitle has-text-danger">
-            <span class="icon"><i class="fas fa-user-check"></i></span>
-            <span>Параметри пошуку</span>
-          </h3>
-          
-          <form id="eligible-donor-search-form">
-            <div class="field">
-              <label class="label">Група крові</label>
-              <div class="control">
-                <div class="select">
-                  <select name="blood_type" required>
-                    <option value="">Виберіть групу крові</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                  </select>
+              <div class="field">
+                <label class="label">Мінімальна кількість донацій</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_donations" min="1" value="1" required>
                 </div>
               </div>
-            </div>
-            <div class="field">
-              <label class="label">Мінімальна кількість днів від останньої донації</label>
-              <div class="control">
-                <input class="input" type="number" name="days_since_donation" min="0" value="56" required>
-                <p class="help">Стандартний період між донаціями - 56 днів</p>
+              <div class="field">
+                <label class="label">Максимальна кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="1000" value="100" required>
+                </div>
               </div>
-            </div>
-            <div class="field">
-              <label class="label">Максимальна кількість результатів</label>
-              <div class="control">
-                <input class="input" type="number" name="limit" min="1" max="1000" value="100" required>
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати запит</span>
+                  </button>
+                </div>
               </div>
-            </div>
-            <div class="field">
-              <div class="control">
-                <button type="submit" class="button is-danger">
-                  <span class="icon"><i class="fas fa-search"></i></span>
-                  <span>Виконати запит</span>
-                </button>
-              </div>
-            </div>
-          </form>
+              <input type="hidden" name="endpoint" value="/donors/query/by-blood-type-min-donations">
+              <input type="hidden" name="display_function" value="displayDonationResults">
+            </form>
+          </div>
+          
+          <!-- Results Section -->
+          <div id="query-results-donations" class="query-results mt-5" style="display: none;">
+            <h3 class="subtitle">Результати пошуку</h3>
+            <div class="results-content"></div>
+          </div>
         </div>
-        
-        <!-- Results Section -->
-        <div id="query-results-eligible" class="query-results mt-5" style="display: none;">
-          <h3 class="subtitle">Результати пошуку</h3>
-          <div class="results-content"></div>
+
+        <!-- Query 2: Eligible Donors by Blood Type -->
+        <div id="query-eligible-section" class="query-section" style="display: none;">
+          <div class="notification is-light">
+            <p>Цей запит дозволяє знайти доступних донорів з обраною групою крові, які не здавали кров протягом зазначеної кількості днів.</p>
+          </div>
+
+          <!-- Query Form -->
+          <div class="box">
+            <h3 class="subtitle has-text-danger">
+              <span class="icon"><i class="fas fa-user-check"></i></span>
+              <span>Параметри пошуку</span>
+            </h3>
+            
+            <form id="eligible-donor-search-form" class="query-form" data-results="query-results-eligible">
+              <div class="field">
+                <label class="label">Група крові</label>
+                <div class="control">
+                  <div class="select">
+                    <select name="blood_type" required>
+                      <option value="">Виберіть групу крові</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Мінімальна кількість днів від останньої донації</label>
+                <div class="control">
+                  <input class="input" type="number" name="days_since_donation" min="0" value="56" required>
+                  <p class="help">Стандартний період між донаціями - 56 днів</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Максимальна кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="1000" value="100" required>
+                </div>
+              </div>
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати запит</span>
+                  </button>
+                </div>
+              </div>
+              <input type="hidden" name="endpoint" value="/donors/query/eligible-donors-by-blood-type">
+              <input type="hidden" name="display_function" value="displayEligibleResults">
+            </form>
+          </div>
+          
+          <!-- Results Section -->
+          <div id="query-results-eligible" class="query-results mt-5" style="display: none;">
+            <h3 class="subtitle">Результати пошуку</h3>
+            <div class="results-content"></div>
+          </div>
+        </div>
+
+        <!-- Query 3: Blood Shortages -->
+        <div id="query-shortages-section" class="query-section" style="display: none;">
+          <div class="notification is-light">
+            <p>Цей запит допоможе знайти лікарні, де є запити на кров обраної групи, але не вистачає донацій для їх виконання.</p>
+          </div>
+
+          <!-- Query Form -->
+          <div class="box">
+            <h3 class="subtitle has-text-danger">
+              <span class="icon"><i class="fas fa-hospital"></i></span>
+              <span>Параметри пошуку</span>
+            </h3>
+            
+            <form id="shortages-search-form" class="query-form" data-results="query-results-shortages">
+              <div class="field">
+                <label class="label">Група крові</label>
+                <div class="control">
+                  <div class="select">
+                    <select name="blood_type" required>
+                      <option value="">Виберіть групу крові</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Максимальний % наповнення</label>
+                <div class="control">
+                  <input class="input" type="number" name="fulfillment_percentage" min="0" max="100" value="50" step="5" required>
+                  <p class="help">Запити з наповненням нижче цього % будуть показані</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Максимальна кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="1000" value="100" required>
+                </div>
+              </div>
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати запит</span>
+                  </button>
+                </div>
+              </div>
+              <input type="hidden" name="endpoint" value="/blood-requests/query/hospitals-with-shortages">
+              <input type="hidden" name="display_function" value="displayShortagesResults">
+            </form>
+          </div>
+          
+          <!-- Results Section -->
+          <div id="query-results-shortages" class="query-results mt-5" style="display: none;">
+            <h3 class="subtitle">Результати пошуку</h3>
+            <div class="results-content"></div>
+          </div>
+        </div>
+
+        <!-- Query 4: Multi-Hospital Donors -->
+        <div id="query-multi-hospital-section" class="query-section" style="display: none;">
+          <div class="notification is-light">
+            <p>Цей запит допоможе знайти донорів, які здавали кров у декількох різних лікарнях.</p>
+          </div>
+
+          <!-- Query Form -->
+          <div class="box">
+            <h3 class="subtitle has-text-danger">
+              <span class="icon"><i class="fas fa-hospital-alt"></i></span>
+              <span>Параметри пошуку</span>
+            </h3>
+            
+            <form id="multi-hospital-search-form" class="query-form" data-results="query-results-multi-hospital">
+              <div class="field">
+                <label class="label">Мінімальна кількість лікарень</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_hospitals" min="1" value="2" required>
+                  <p class="help">Мінімальна кількість різних лікарень, де донор здавав кров</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Мінімальна кількість донацій</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_donations" min="1" value="3" required>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Період, місяців</label>
+                <div class="control">
+                  <input class="input" type="number" name="months" min="1" max="60" value="6" required>
+                  <p class="help">За який період часу враховувати донації</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Максимальна кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="1000" value="50" required>
+                </div>
+              </div>
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати запит</span>
+                  </button>
+                </div>
+              </div>
+              <input type="hidden" name="endpoint" value="/donors/query/multi-hospital-donors">
+              <input type="hidden" name="display_function" value="displayMultiHospitalResults">
+            </form>
+          </div>
+          
+          <!-- Results Section -->
+          <div id="query-results-multi-hospital" class="query-results mt-5" style="display: none;">
+            <h3 class="subtitle">Результати пошуку</h3>
+            <div class="results-content"></div>
+          </div>
+        </div>
+
+        <!-- Query 5: High-Volume Blood Requests -->
+        <div id="query-high-volume-section" class="query-section" style="display: none;">
+          <div class="notification is-light">
+            <p>Цей запит дозволяє знайти запити на кров великого об'єму з підвищеним рівнем терміновості.</p>
+          </div>
+
+          <!-- Query Form -->
+          <div class="box">
+            <h3 class="subtitle has-text-danger">
+              <span class="icon"><i class="fas fa-syringe"></i></span>
+              <span>Параметри пошуку</span>
+            </h3>
+            
+            <form id="high-volume-search-form" class="query-form" data-results="query-results-high-volume">
+              <div class="field">
+                <label class="label">Мінімальний об'єм крові (мл)</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_volume_ml" min="100" max="10000" value="1000" required>
+                  <p class="help">Мінімальний об'єм крові, який потрібен у запиті</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Мінімальний рівень терміновості</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_urgency" min="1" max="5" value="3" required>
+                  <p class="help">Рівень терміновості від 1 (низький) до 5 (критичний)</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Період, днів</label>
+                <div class="control">
+                  <input class="input" type="number" name="days" min="1" max="90" value="30" required>
+                  <p class="help">В межах скількох днів потрібна кров</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Максимальна кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="1000" value="50" required>
+                </div>
+              </div>
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати запит</span>
+                  </button>
+                </div>
+              </div>
+              <input type="hidden" name="endpoint" value="/blood-requests/query/high-volume-requests">
+              <input type="hidden" name="display_function" value="displayHighVolumeResults">
+            </form>
+          </div>
+          
+          <!-- Results Section -->
+          <div id="query-results-high-volume" class="query-results mt-5" style="display: none;">
+            <h3 class="subtitle">Результати пошуку</h3>
+            <div class="results-content"></div>
+          </div>
+        </div>
+
+        <!-- Query 6: Staff Performance -->
+        <div id="query-staff-performance-section" class="query-section" style="display: none;">
+          <div class="notification is-light">
+            <p>Цей запит показує ефективність роботи медичного персоналу за виконаними запитами на кров.</p>
+          </div>
+
+          <!-- Query Form -->
+          <div class="box">
+            <h3 class="subtitle has-text-danger">
+              <span class="icon"><i class="fas fa-user-md"></i></span>
+              <span>Параметри пошуку</span>
+            </h3>
+            
+            <form id="staff-performance-search-form" class="query-form" data-results="query-results-staff-performance">
+              <div class="field">
+                <label class="label">Мінімальна кількість запитів</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_requests" min="1" value="5" required>
+                  <p class="help">Мінімальна кількість створених запитів на кров</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Мінімальний % виконання</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_fulfillment_rate" min="0" max="100" value="70" required>
+                  <p class="help">Мінімальний відсоток виконаних запитів на кров</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Період, місяців</label>
+                <div class="control">
+                  <input class="input" type="number" name="months" min="1" max="60" value="6" required>
+                  <p class="help">За який період часу аналізувати дані</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="label">Максимальна кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="1000" value="50" required>
+                </div>
+              </div>
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати запит</span>
+                  </button>
+                </div>
+              </div>
+              <input type="hidden" name="endpoint" value="/hospital-staff/query/staff-performance">
+              <input type="hidden" name="display_function" value="displayStaffPerfResults">
+            </form>
+          </div>
+          
+          <!-- Results Section -->
+          <div id="query-results-staff-performance" class="query-results mt-5" style="display: none;">
+            <h3 class="subtitle">Результати пошуку</h3>
+            <div class="results-content"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -199,48 +469,167 @@
 </div>
 {% endblock %}
 
+{% block styles %}
+<style>
+  @media screen and (max-width: 768px) {
+    .menu-list li ul {
+      margin: 0.5em 0 0.5em 0.75em;
+    }
+    
+    .columns {
+      display: block;
+    }
+    
+    .column.is-one-quarter {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+    
+    .table-container {
+      overflow-x: auto;
+      max-width: 100%;
+    }
+  }
+  
+  .query-link.is-active {
+    background-color: #f5f5f5;
+    color: #f14668;
+    font-weight: bold;
+  }
+  
+  .query-category-link.is-active {
+    background-color: #f5f5f5;
+  }
+  
+  .query-section {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Tab switching functionality
-  const queryTabs = document.getElementById('query-tabs').querySelectorAll('li');
-  const querySections = document.querySelectorAll('.query-section');
+  // Category descriptions for dynamic updates
+  const categoryDescriptions = {
+    'donor': 'Використовуйте спеціальні запити для пошуку донорів за різними критеріями.',
+    'blood': 'Запити для аналізу потреб у крові та відстеження запитів.',
+    'staff': 'Аналіз ефективності персоналу та статистики запитів.'
+  };
   
-  queryTabs.forEach(tab => {
-    tab.addEventListener('click', function() {
-      // Deactivate all tabs
-      queryTabs.forEach(t => t.classList.remove('is-active'));
-      // Hide all sections
-      querySections.forEach(s => s.style.display = 'none');
+  // Category titles for dynamic updates
+  const categoryTitles = {
+    'donor': 'Пошук донорів',
+    'blood': 'Запити на кров',
+    'staff': 'Ефективність персоналу'
+  };
+  
+  // Handle category links
+  const categoryLinks = document.querySelectorAll('.query-category-link');
+  categoryLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
       
-      // Activate clicked tab
+      // Toggle expanded state
+      const isActive = this.classList.contains('is-active');
+      
+      // Update UI
+      categoryLinks.forEach(l => l.classList.remove('is-active'));
+      
+      if (!isActive) {
+        this.classList.add('is-active');
+        
+        // Update title and description
+        const category = this.getAttribute('data-category');
+        document.getElementById('current-category-title').textContent = categoryTitles[category];
+        document.getElementById('current-category-description').textContent = categoryDescriptions[category];
+        
+        // If there's a first query link in this category, activate it
+        const firstQueryLink = this.nextElementSibling.querySelector('.query-link');
+        if (firstQueryLink) {
+          showQuerySection(firstQueryLink.getAttribute('data-target'));
+          
+          // Update query link active states
+          document.querySelectorAll('.query-link').forEach(ql => ql.classList.remove('is-active'));
+          firstQueryLink.classList.add('is-active');
+        }
+      }
+    });
+  });
+  
+  // Handle individual query links
+  const queryLinks = document.querySelectorAll('.query-link');
+  queryLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Update active state
+      queryLinks.forEach(l => l.classList.remove('is-active'));
       this.classList.add('is-active');
       
-      // Show corresponding section
+      // Show the corresponding section
       const targetId = this.getAttribute('data-target');
-      document.getElementById(targetId).style.display = 'block';
+      showQuerySection(targetId);
     });
   });
   
-  // First query form submission
-  const searchForm = document.getElementById('donor-search-form');
-  const resultsContainerDonations = document.getElementById('query-results-donations');
-  const resultsContentDonations = resultsContainerDonations.querySelector('.results-content');
+  // Function to show a specific query section and hide others
+  function showQuerySection(sectionId) {
+    const sections = document.querySelectorAll('.query-section');
+    sections.forEach(section => {
+      section.style.display = section.id === sectionId ? 'block' : 'none';
+    });
+    
+    // Hide all result containers when switching sections
+    document.querySelectorAll('.query-results').forEach(container => {
+      container.style.display = 'none';
+    });
+  }
   
-  searchForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const params = new URLSearchParams();
-    
-    for (const [key, value] of formData.entries()) {
-      params.append(key, value);
-    }
-    
-    const url = `/donors/query/by-blood-type-min-donations?${params.toString()}`;
-    
-    // Show loading indicator
-    resultsContentDonations.innerHTML = `
+  // Generic form submission handler
+  const queryForms = document.querySelectorAll('.query-form');
+  queryForms.forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const params = new URLSearchParams();
+      
+      // Get the target results container
+      const resultsContainerId = this.getAttribute('data-results');
+      const resultsContainer = document.getElementById(resultsContainerId);
+      const resultsContent = resultsContainer.querySelector('.results-content');
+      
+      // Get the endpoint and display function from hidden inputs
+      const endpoint = this.querySelector('input[name="endpoint"]').value;
+      const displayFunctionName = this.querySelector('input[name="display_function"]').value;
+      
+      // Build URL parameters
+      for (const [key, value] of formData.entries()) {
+        if (key !== 'endpoint' && key !== 'display_function') {
+          params.append(key, value);
+        }
+      }
+      
+      const url = `${endpoint}?${params.toString()}`;
+      
+      // Show loading indicator
+      showLoading(resultsContent);
+      resultsContainer.style.display = 'block';
+      
+      // Execute the fetch
+      fetchData(url, resultsContent, window[displayFunctionName]);
+    });
+  });
+  
+  // Generic helper functions
+  function showLoading(container) {
+    container.innerHTML = `
       <div class="has-text-centered">
         <span class="icon is-large">
           <i class="fas fa-spinner fa-pulse fa-2x"></i>
@@ -248,8 +637,18 @@ document.addEventListener('DOMContentLoaded', function() {
         <p>Завантаження результатів...</p>
       </div>
     `;
-    resultsContainerDonations.style.display = 'block';
-    
+  }
+  
+  function showError(container, message) {
+    container.innerHTML = `
+      <div class="notification is-danger">
+        <button class="delete" onclick="this.parentNode.style.display='none'"></button>
+        ${message}
+      </div>
+    `;
+  }
+  
+  function fetchData(url, container, displayCallback) {
     fetch(url, {
       headers: {
         'Accept': 'application/json'
@@ -266,85 +665,17 @@ document.addEventListener('DOMContentLoaded', function() {
       return response.json();
     })
     .then(data => {
-      resultsContainerDonations.style.display = 'block';
-      displayDonationResults(data, resultsContentDonations);
+      displayCallback(data, container);
     })
     .catch(error => {
-      resultsContentDonations.innerHTML = `
-        <div class="notification is-danger">
-          <button class="delete" onclick="this.parentNode.style.display='none'"></button>
-          ${error.message}
-        </div>
-      `;
+      showError(container, error.message);
     });
-  });
-  
-  // Second query form submission (eligible donors)
-  const eligibleSearchForm = document.getElementById('eligible-donor-search-form');
-  const resultsContainerEligible = document.getElementById('query-results-eligible');
-  const resultsContentEligible = resultsContainerEligible.querySelector('.results-content');
-  
-  eligibleSearchForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const params = new URLSearchParams();
-    
-    for (const [key, value] of formData.entries()) {
-      params.append(key, value);
-    }
-    
-    const url = `/donors/query/eligible-donors-by-blood-type?${params.toString()}`;
-    
-    // Show loading indicator
-    resultsContentEligible.innerHTML = `
-      <div class="has-text-centered">
-        <span class="icon is-large">
-          <i class="fas fa-spinner fa-pulse fa-2x"></i>
-        </span>
-        <p>Завантаження результатів...</p>
-      </div>
-    `;
-    resultsContainerEligible.style.display = 'block';
-    
-    fetch(url, {
-      headers: {
-        'Accept': 'application/json'
-      },
-      credentials: 'same-origin'
-    })
-    .then(response => {
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Необхідна авторизація. Будь ласка, увійдіть в систему.');
-        }
-        throw new Error(`Помилка запиту: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      resultsContainerEligible.style.display = 'block';
-      displayEligibleResults(data, resultsContentEligible);
-    })
-    .catch(error => {
-      resultsContentEligible.innerHTML = `
-        <div class="notification is-danger">
-          <button class="delete" onclick="this.parentNode.style.display='none'"></button>
-          ${error.message}
-        </div>
-      `;
-    });
-  });
-  
-  // Display formatted results for first query
-  function displayDonationResults(data, container) {
+  }
+
+  // Display formatted results for each query type
+  window.displayDonationResults = function(data, container) {
     if (data.length === 0) {
-      container.innerHTML = `
-        <div class="notification is-info">
-          <button class="delete" onclick="this.parentNode.style.display='none'"></button>
-          Немає результатів для заданих параметрів.
-        </div>
-      `;
+      showEmptyResults(container);
       return;
     }
     
@@ -391,17 +722,11 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     
     container.innerHTML = html;
-  }
+  };
   
-  // Display formatted results for second query (eligible donors)
-  function displayEligibleResults(data, container) {
+  window.displayEligibleResults = function(data, container) {
     if (data.length === 0) {
-      container.innerHTML = `
-        <div class="notification is-info">
-          <button class="delete" onclick="this.parentNode.style.display='none'"></button>
-          Немає результатів для заданих параметрів.
-        </div>
-      `;
+      showEmptyResults(container);
       return;
     }
     
@@ -454,6 +779,289 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     
     container.innerHTML = html;
+  };
+  
+  window.displayShortagesResults = function(data, container) {
+    if (data.length === 0) {
+      showEmptyResults(container);
+      return;
+    }
+    
+    let html = `
+      <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable">
+          <thead>
+            <tr>
+              <th>Лікарня</th>
+              <th>Місто</th>
+              <th>ID запиту</th>
+              <th>Група крові</th>
+              <th>Потрібно (мл)</th>
+              <th>Зібрано (мл)</th>
+              <th>Не вистачає (мл)</th>
+              <th>Виконано (%)</th>
+              <th>Терміновість</th>
+              <th>Потрібно до</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    data.forEach(item => {
+      const deadlineDate = new Date(item.needed_by_date);
+      const today = new Date();
+      const daysUntil = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
+      
+      let urgencyClass = 'is-warning';
+      if (daysUntil <= 3 || item.urgency_level >= 4) {
+        urgencyClass = 'is-danger';
+      } else if (daysUntil > 7) {
+        urgencyClass = 'is-info';
+      }
+      
+      html += `
+        <tr>
+          <td>${item.hospital_name}</td>
+          <td>${item.city}</td>
+          <td>${item.request_id}</td>
+          <td><span class="tag is-danger">${item.blood_type}</span></td>
+          <td>${item.amount_needed_ml} мл</td>
+          <td>${item.collected_ml} мл</td>
+          <td><strong>${item.shortage_ml} мл</strong></td>
+          <td>
+            <progress class="progress is-small ${urgencyClass}" 
+                    value="${item.fulfillment_percentage}" 
+                    max="100">
+              ${Math.round(item.fulfillment_percentage)}%
+            </progress>
+          </td>
+          <td>
+            <span class="tag ${item.urgency_level >= 4 ? 'is-danger' : 
+                              item.urgency_level >= 3 ? 'is-warning' : 'is-info'}">
+              ${item.urgency_level}/5
+            </span>
+          </td>
+          <td>
+            ${new Date(item.needed_by_date).toLocaleDateString('uk-UA')}
+            ${daysUntil <= 0 ? '<span class="tag is-danger">Термін минув!</span>' : 
+               `<span class="tag ${urgencyClass}">${daysUntil} днів</span>`}
+          </td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <div class="notification is-light mt-4">
+        <p>Знайдено запитів з нестачею крові: <strong>${data.length}</strong></p>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+  };
+  
+  window.displayMultiHospitalResults = function(data, container) {
+    if (data.length === 0) {
+      showEmptyResults(container);
+      return;
+    }
+    
+    let html = `
+      <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Ім'я донора</th>
+              <th>Група крові</th>
+              <th>Кількість лікарень</th>
+              <th>Кількість донацій</th>
+              <th>Загальний об'єм</th>
+              <th>Лікарні</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    data.forEach(donor => {
+      html += `
+        <tr>
+          <td>${donor.donor_id}</td>
+          <td>${donor.first_name} ${donor.last_name}</td>
+          <td><span class="tag is-danger">${donor.blood_type}</span></td>
+          <td><strong>${donor.hospital_count}</strong></td>
+          <td>${donor.donation_count}</td>
+          <td>${donor.total_donated_ml} мл</td>
+          <td>${donor.hospital_names}</td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <div class="notification is-light mt-4">
+        <p>Знайдено донорів: <strong>${data.length}</strong></p>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+  };
+  
+  window.displayHighVolumeResults = function(data, container) {
+    if (data.length === 0) {
+      showEmptyResults(container);
+      return;
+    }
+    
+    let html = `
+      <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Лікарня</th>
+              <th>Місто</th>
+              <th>Група крові</th>
+              <th>Потрібно (мл)</th>
+              <th>Зібрано (мл)</th>
+              <th>Залишилось (мл)</th>
+              <th>Терміновість</th>
+              <th>Термін до</th>
+              <th>Персонал</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    data.forEach(item => {
+      const deadlineDate = new Date(item.needed_by_date);
+      const today = new Date();
+      const daysUntil = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
+      
+      let urgencyClass = 'is-warning';
+      if (item.urgency_level >= 4) {
+        urgencyClass = 'is-danger';
+      } else if (item.urgency_level <= 2) {
+        urgencyClass = 'is-info';
+      }
+      
+      html += `
+        <tr>
+          <td>${item.request_id}</td>
+          <td>${item.hospital_name}</td>
+          <td>${item.city}</td>
+          <td><span class="tag is-danger">${item.blood_type}</span></td>
+          <td><strong>${item.amount_needed_ml} мл</strong></td>
+          <td>${item.collected_ml} мл</td>
+          <td>${item.remaining_ml} мл</td>
+          <td>
+            <span class="tag ${urgencyClass}">
+              ${item.urgency_level}/5
+            </span>
+          </td>
+          <td>
+            ${new Date(item.needed_by_date).toLocaleDateString('uk-UA')}
+            ${daysUntil <= 0 ? '<span class="tag is-danger">Термін минув!</span>' : 
+               `<span class="tag ${daysUntil <= 3 ? 'is-danger' : daysUntil <= 7 ? 'is-warning' : 'is-info'}">${daysUntil} днів</span>`}
+          </td>
+          <td>${item.staff_name}<br><small>${item.staff_role}</small></td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <div class="notification is-light mt-4">
+        <p>Знайдено запитів: <strong>${data.length}</strong></p>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+  };
+  
+  window.displayStaffPerfResults = function(data, container) {
+    if (data.length === 0) {
+      showEmptyResults(container);
+      return;
+    }
+    
+    let html = `
+      <div class="table-container">
+        <table class="table is-fullwidth is-striped is-hoverable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Ім'я працівника</th>
+              <th>Email</th>
+              <th>Посада</th>
+              <th>Лікарня</th>
+              <th>Всього запитів</th>
+              <th>Виконано запитів</th>
+              <th>% виконання</th>
+              <th>Групи крові</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    data.forEach(staff => {
+      let perfClass = 'is-warning';
+      if (staff.fulfillment_rate >= 90) {
+        perfClass = 'is-success';
+      } else if (staff.fulfillment_rate < 60) {
+        perfClass = 'is-danger';
+      }
+      
+      html += `
+        <tr>
+          <td>${staff.staff_id}</td>
+          <td>${staff.first_name} ${staff.last_name}</td>
+          <td>${staff.email}</td>
+          <td>${staff.role}</td>
+          <td>${staff.hospital_name}</td>
+          <td>${staff.total_requests}</td>
+          <td>${staff.fulfilled_requests}</td>
+          <td>
+            <progress class="progress is-small ${perfClass}" 
+                    value="${staff.fulfillment_rate}" 
+                    max="100">
+            ${Math.round(staff.fulfillment_rate)}%
+            </progress>
+            <span class="has-text-weight-bold">${Math.round(staff.fulfillment_rate)}%</span>
+          </td>
+          <td>
+            <span class="tag is-info">${staff.blood_type_count} типів</span>
+            ${staff.blood_types ? `<div class="tags mt-1">${staff.blood_types.split(', ').map(bt => `<span class="tag is-danger is-light">${bt}</span>`).join('')}</div>` : ''}
+          </td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <div class="notification is-light mt-4">
+        <p>Знайдено співробітників: <strong>${data.length}</strong></p>
+      </div>
+    `;
+    
+    container.innerHTML = html;
+  };
+  
+  function showEmptyResults(container) {
+    container.innerHTML = `
+      <div class="notification is-info">
+        <button class="delete" onclick="this.parentNode.style.display='none'"></button>
+        Немає результатів для заданих параметрів.
+      </div>
+    `;
   }
 });
 </script>

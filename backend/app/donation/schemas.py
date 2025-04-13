@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+from enum import Enum
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from app.common.enums import BloodType, DonationStatus
@@ -106,3 +107,81 @@ class DonationStatusUpdate(BaseModel):
             }
         }
     }
+
+class DonationStatisticsParams(BaseModel):
+    min_donations: int = Field(10, description="Minimum number of donations received", ge=1)
+    min_total_ml: int = Field(5000, description="Minimum total blood volume collected in ml", ge=500)
+    blood_type: Optional[str] = Field(None, description="Optional blood type filter")
+    months: int = Field(3, description="Look back period in months", ge=1)
+    limit: int = Field(50, description="Maximum number of results", le=1000)
+    
+    @field_validator('blood_type')
+    def validate_blood_type(cls, v):
+        if v is None:
+            return v
+        try:
+            BloodType(v)
+            return v
+        except ValueError:
+            valid_types = [t.value for t in BloodType]
+            raise ValueError(f"Invalid blood type. Must be one of: {', '.join(valid_types)}")
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "min_donations": 10,
+                "min_total_ml": 5000,
+                "blood_type": "O+",
+                "months": 3,
+                "limit": 50
+            }
+        }
+    }
+
+class DonationStatisticsResponse(BaseModel):
+    region: str
+    blood_type: str
+    region_donation_count: int
+    region_collected_ml: int
+    hospital_count: int
+    avg_donation_ml: float
+    total_donors: int
+    hospitals: str
+
+
+class DemographicChoices(str, Enum):
+    AGE_GROUP = "age_group"
+    GENDER = "gender"
+    BLOOD_TYPE = "blood_type"
+    REGION = "region"
+
+class DonationDemographicsParams(BaseModel):
+    min_age: int = Field(18, description="Minimum donor age", ge=18)
+    max_age: int = Field(65, description="Maximum donor age", le=100)
+    min_donations: int = Field(3, description="Minimum number of donations per person", ge=1)
+    months: int = Field(12, description="Look back period in months", ge=1)
+    group_by: DemographicChoices = Field(DemographicChoices.AGE_GROUP, description="Demographic grouping")
+    limit: int = Field(50, description="Maximum number of results", le=1000)
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "min_age": 18,
+                "max_age": 65,
+                "min_donations": 3,
+                "months": 12,
+                "group_by": "age_group",
+                "limit": 50
+            }
+        }
+    }
+
+class DonationDemographicsResponse(BaseModel):
+    demographic_group: str
+    donor_count: int
+    total_donations: int
+    avg_donations_per_donor: float
+    avg_donation_ml: float
+    max_donations_by_donor: int
+    total_donated_ml: int
+    avg_days_between_donations: float

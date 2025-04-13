@@ -106,3 +106,4 @@ class HospitalStatsResponse(BaseModel):
     active_requests: int = 0
     scheduled_donations: int = 0
     completed_donations: int = 0
+    

@@ -1,7 +1,7 @@
 from datetime import date
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from app.donor.schemas import DonorBloodTypeQueryParams, DonorEligibilityUpdate, DonorProfileCreate, DonorProfileResponse, DonorWithDonationsResponse, EligibleDonorParams, EligibleDonorResponse
+from app.donor.schemas import DonorBloodTypeQueryParams, DonorEligibilityUpdate, DonorProfileCreate, DonorProfileResponse, DonorWithDonationsResponse, EligibleDonorParams, EligibleDonorResponse, MultiHospitalDonorParams, MultiHospitalDonorResponse
 from app.donor.dao import DonorDAO
 from app.users.dao import UsersDAO
 from app.users.models import User
@@ -315,3 +315,23 @@ async def get_eligible_donors_by_blood_type(
     )
     
     return eligible_donors
+
+
+@router.get("/query/multi-hospital-donors", response_model=List[MultiHospitalDonorResponse])
+async def get_multi_hospital_donors(
+    query_params: MultiHospitalDonorParams = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """Find donors who have donated at multiple hospitals within a time period"""
+    
+    donors = await DonorDAO.find_multi_hospital_donors(
+        min_hospitals=query_params.min_hospitals,
+        min_donations=query_params.min_donations,
+        months=query_params.months,
+        limit=query_params.limit
+    )
+    
+    if not donors:
+        return []
+    
+    return donors

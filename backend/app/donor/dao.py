@@ -245,3 +245,74 @@ class DonorDAO(BaseDAO):
                 donors.append(donor_dict)
                     
             return donors
+        
+
+    @classmethod
+    async def find_multi_hospital_donors(
+        cls,
+        min_hospitals: int = 2,
+        min_donations: int = 3,
+        months: int = 6,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Find donors who donated in multiple hospitals with at least a minimum number of total donations.
+        """
+        async with async_session_maker() as session:
+            query = text("""
+            SELECT 
+                d.id AS donor_id,
+                u.first_name, 
+                u.last_name, 
+                u.email,
+                u.phone_number,
+                d.blood_type,
+                COUNT(DISTINCT don.hospital_id) AS hospital_count,
+                COUNT(don.id) AS donation_count,
+                SUM(don.blood_amount_ml) AS total_donated_ml,
+                STRING_AGG(DISTINCT h.name, ', ') AS hospital_names
+            FROM 
+                donors d
+            JOIN 
+                users u ON d.user_id = u.id
+            JOIN 
+                donations don ON d.id = don.donor_id
+            JOIN 
+                hospitals h ON don.hospital_id = h.id
+            WHERE 
+                don.donation_date > NOW() - (:months * interval '1 month')
+                AND don.status = 'COMPLETED'
+            GROUP BY 
+                d.id, u.first_name, u.last_name, u.email, u.phone_number, d.blood_type
+            HAVING 
+                COUNT(DISTINCT don.hospital_id) >= :min_hospitals
+                AND COUNT(don.id) >= :min_donations
+            ORDER BY 
+                hospital_count DESC, donation_count DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {"min_hospitals": min_hospitals, "min_donations": min_donations, 
+                 "months": months, "limit": limit}
+            )
+            
+            # Rest of the method remains the same
+            
+            result = await session.execute(
+                query, 
+                {"min_hospitals": min_hospitals, "min_donations": min_donations, 
+                "months": months, "limit": limit}
+            )
+            
+            donors = []
+            for row in result.mappings():
+                donor_dict = dict(row)
+                for bt in BloodType:
+                    if bt.name == donor_dict['blood_type']:
+                        donor_dict['blood_type'] = bt.value
+                        break
+                donors.append(donor_dict)
+                    
+            return donors
