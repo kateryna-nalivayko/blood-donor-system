@@ -1,0 +1,780 @@
+{% extends "base.html" %}
+
+{% block title %}Розширена аналітика - Blood Donor System{% endblock %}
+
+{% block head %}
+<style>
+  .tabs-content > div {
+    display: none;
+  }
+  .tabs-content > div.is-active {
+    display: block;
+  }
+  .query-form {
+    margin-bottom: 2rem;
+  }
+  .query-results {
+    margin-top: 2rem;
+  }
+  .tag.is-blood-type {
+    background-color: #f14668;
+    color: white;
+  }
+  .similarity-excellent {
+    background-color: #48c774;
+    color: white;
+  }
+  .similarity-good {
+    background-color: #3298dc;
+    color: white;
+  }
+  .similarity-moderate {
+    background-color: #ffdd57;
+    color: black;
+  }
+  .progress-wrapper {
+    position: relative;
+  }
+  .progress-value {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    width: 100%;
+    color: #363636;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="columns">
+  <!-- Sidebar -->
+  <div class="column is-one-quarter">
+    <div class="box">
+      <aside class="menu">
+        <p class="menu-label">Панель керування</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/hospital_staff/dashboard">
+              <span class="icon"><i class="fas fa-home"></i></span>
+              <span>Головна</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/blood-requests">
+              <span class="icon"><i class="fas fa-tint"></i></span>
+              <span>Запити на кров</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/create-blood-request">
+              <span class="icon"><i class="fas fa-plus-circle"></i></span>
+              <span>Створити запит</span>
+            </a>
+          </li>
+        </ul>
+
+        <p class="menu-label">Аналітика</p>
+        <ul class="menu-list">
+          <li>
+            <a href="/pages/hospital_staff/reports">
+              <span class="icon"><i class="fas fa-chart-bar"></i></span>
+              <span>Статистика запитів</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/custom-queries">
+              <span class="icon"><i class="fas fa-database"></i></span>
+              <span>Стандартні запити</span>
+            </a>
+          </li>
+          <li>
+            <a href="/pages/hospital_staff/advanced-analytics" class="is-active">
+              <span class="icon"><i class="fas fa-brain"></i></span>
+              <span>Розширена аналітика</span>
+            </a>
+          </li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="column">
+    <div class="box">
+      <h1 class="title has-text-centered has-text-danger">
+        <span class="icon"><i class="fas fa-brain"></i></span>
+        <span>Розширена аналітика кров'яного донорства</span>
+      </h1>
+      <p class="subtitle has-text-centered">
+        Складні аналітичні запити для глибокого аналізу даних системи
+      </p>
+      
+      <div class="tabs is-centered is-boxed">
+        <ul>
+          <li class="is-active" data-target="identical-needs-tab">
+            <a>
+              <span class="icon is-small"><i class="fas fa-hospital"></i></span>
+              <span>Ідентичні потреби лікарень</span>
+            </a>
+          </li>
+          <li data-target="universal-donors-tab">
+            <a>
+              <span class="icon is-small"><i class="fas fa-user-friends"></i></span>
+              <span>Універсальні донори регіону</span>
+            </a>
+          </li>
+          <li data-target="matching-patterns-tab">
+            <a>
+              <span class="icon is-small"><i class="fas fa-user-md"></i></span>
+              <span>Схожість запитів персоналу</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      
+      <div class="tabs-content">
+        <!-- Tab 1: Identical Hospital Needs -->
+        <div id="identical-needs-tab" class="is-active">
+          <div class="notification is-info is-light">
+            <p><strong>Лікарні з ідентичними потребами в крові</strong></p>
+            <p>Цей аналітичний запит знаходить лікарні, які мають точно такий же набір потреб у різних групах крові, як і обрана референтна лікарня. Це може допомогти в координації зусиль з донорства та розподілу ресурсів між лікарнями з подібними потребами.</p>
+          </div>
+          
+          <div class="query-form">
+            <form id="identical-needs-form">
+              <div class="field">
+                <label class="label">Референтна лікарня (ID)</label>
+                <div class="control">
+                  <input class="input" type="number" name="reference_hospital_id" min="1" value="1" required>
+                  <p class="help">ID лікарні, з якою порівнювати інші</p>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Період аналізу (днів)</label>
+                <div class="control">
+                  <input class="input" type="number" name="time_period_days" min="7" max="365" value="30" required>
+                  <p class="help">Аналізувати запити за останні N днів</p>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Мін. відсоток дефіциту (%)</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_shortage_percent" min="0" max="100" step="5" value="25" required>
+                  <p class="help">Мінімальний відсоток нестачі для врахування групи крові</p>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Макс. кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="100" value="50" required>
+                </div>
+              </div>
+              
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати аналіз</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+          
+          <div id="identical-needs-results" class="query-results" style="display: none;">
+            <h3 class="subtitle">Результати аналізу</h3>
+            <div class="results-content"></div>
+          </div>
+        </div>
+        
+        <!-- Tab 2: Universal Donors by Region -->
+        <div id="universal-donors-tab">
+          <div class="notification is-info is-light">
+            <p><strong>Універсальні донори за регіоном</strong></p>
+            <p>Цей запит знаходить донорів, які здавали кров у всіх лікарнях певного регіону. Такі донори є надзвичайно цінними, оскільки вони демонструють високу мобільність та готовність допомагати в різних локаціях.</p>
+          </div>
+          
+          <div class="query-form">
+            <form id="universal-donors-form">
+              <div class="field">
+                <label class="label">Регіон</label>
+                <div class="control">
+                  <div class="select">
+                    <select name="region" required>
+                      <option value="">Виберіть регіон</option>
+                      <option value="Автономна Республіка Крим">Автономна Республіка Крим</option>
+                      <option value="Вінницька область">Вінницька область</option>
+                      <option value="Волинська область">Волинська область</option>
+                      <option value="Дніпропетровська область">Дніпропетровська область</option>
+                      <option value="Донецька область">Донецька область</option>
+                      <option value="Житомирська область">Житомирська область</option>
+                      <option value="Закарпатська область">Закарпатська область</option>
+                      <option value="Запорізька область">Запорізька область</option>
+                      <option value="Івано-Франківська область">Івано-Франківська область</option>
+                      <option value="Київська область">Київська область</option>
+                      <option value="Кіровоградська область">Кіровоградська область</option>
+                      <option value="Луганська область">Луганська область</option>
+                      <option value="Львівська область">Львівська область</option>
+                      <option value="Миколаївська область">Миколаївська область</option>
+                      <option value="Одеська область">Одеська область</option>
+                      <option value="Полтавська область">Полтавська область</option>
+                      <option value="Рівненська область">Рівненська область</option>
+                      <option value="Сумська область">Сумська область</option>
+                      <option value="Тернопільська область">Тернопільська область</option>
+                      <option value="Харківська область">Харківська область</option>
+                      <option value="Херсонська область">Херсонська область</option>
+                      <option value="Хмельницька область">Хмельницька область</option>
+                      <option value="Черкаська область">Черкаська область</option>
+                      <option value="Чернівецька область">Чернівецька область</option>
+                      <option value="Чернігівська область">Чернігівська область</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Мін. кількість донацій на лікарню</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_donations" min="1" max="10" value="1" required>
+                  <p class="help">Мінімальна кількість донацій в кожній лікарні</p>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Період аналізу (місяців)</label>
+                <div class="control">
+                  <input class="input" type="number" name="time_period_months" min="1" max="60" value="12" required>
+                  <p class="help">Аналізувати донації за останні N місяців</p>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Макс. кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="100" value="50" required>
+                </div>
+              </div>
+              
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати аналіз</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+          
+          <div id="universal-donors-results" class="query-results" style="display: none;">
+            <h3 class="subtitle">Результати аналізу</h3>
+            <div class="results-content"></div>
+          </div>
+        </div>
+        
+        <!-- Tab 3: Staff with Matching Request Patterns -->
+        <div id="matching-patterns-tab">
+          <div class="notification is-info is-light">
+            <p><strong>Персонал зі схожими патернами запитів</strong></p>
+            <p>Цей запит знаходить пари медичного персоналу, які створюють однакові або дуже схожі набори запитів на кров за групами. Це може виявити персонал зі схожою спеціалізацією або відділи, де можлива координація зусиль.</p>
+          </div>
+          
+          <div class="query-form">
+            <form id="matching-patterns-form">
+              <div class="field">
+                <label class="label">Мін. кількість груп крові</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_blood_types" min="1" max="8" value="2" required>
+                  <p class="help">Мінімальна кількість різних груп крові в запитах</p>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Мін. відсоток схожості (%)</label>
+                <div class="control">
+                  <input class="input" type="number" name="min_similarity_percent" min="50" max="100" step="5" value="90" required>
+                  <p class="help">Мінімальна схожість між наборами запитуваних груп крові</p>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Період аналізу (місяців)</label>
+                <div class="control">
+                  <input class="input" type="number" name="time_period_months" min="1" max="36" value="6" required>
+                  <p class="help">Аналізувати запити за останні N місяців</p>
+                </div>
+              </div>
+              
+              <div class="field">
+                <label class="label">Макс. кількість результатів</label>
+                <div class="control">
+                  <input class="input" type="number" name="limit" min="1" max="100" value="50" required>
+                </div>
+              </div>
+              
+              <div class="field">
+                <div class="control">
+                  <button type="submit" class="button is-danger">
+                    <span class="icon"><i class="fas fa-search"></i></span>
+                    <span>Виконати аналіз</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+          
+          <div id="matching-patterns-results" class="query-results" style="display: none;">
+            <h3 class="subtitle">Результати аналізу</h3>
+            <div class="results-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching logic
+    const tabLinks = document.querySelectorAll('.tabs li');
+    tabLinks.forEach(tabLink => {
+      tabLink.addEventListener('click', function() {
+        // Update active tab
+        tabLinks.forEach(link => link.classList.remove('is-active'));
+        this.classList.add('is-active');
+        
+        // Show corresponding content
+        const targetId = this.getAttribute('data-target');
+        document.querySelectorAll('.tabs-content > div').forEach(content => {
+          content.classList.remove('is-active');
+        });
+        document.getElementById(targetId).classList.add('is-active');
+      });
+    });
+    
+    // Form submission handlers
+    
+    // 1. Identical Hospital Needs
+    document.getElementById('identical-needs-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const params = new URLSearchParams();
+      for (let [key, value] of formData.entries()) {
+        params.append(key, value);
+      }
+      
+      const resultsContainer = document.getElementById('identical-needs-results');
+      const resultsContent = resultsContainer.querySelector('.results-content');
+      
+      // Show loading
+      resultsContainer.style.display = 'block';
+      resultsContent.innerHTML = getLoadingHTML();
+      
+      // Fetch data
+      fetch(`/api/hospitals/analytics/identical-needs?${params.toString()}`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        displayIdenticalNeedsResults(data, resultsContent);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        resultsContent.innerHTML = getErrorHTML(error.message);
+      });
+    });
+    
+    // 2. Universal Donors by Region
+    document.getElementById('universal-donors-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const params = new URLSearchParams();
+      for (let [key, value] of formData.entries()) {
+        params.append(key, value);
+      }
+      
+      const resultsContainer = document.getElementById('universal-donors-results');
+      const resultsContent = resultsContainer.querySelector('.results-content');
+      
+      // Show loading
+      resultsContainer.style.display = 'block';
+      resultsContent.innerHTML = getLoadingHTML();
+      
+      // Fetch data
+      fetch(`/donors/analytics/universal-donors?${params.toString()}`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        displayUniversalDonorsResults(data, resultsContent);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        resultsContent.innerHTML = getErrorHTML(error.message);
+      });
+    });
+    
+    // 3. Staff with Matching Request Patterns
+    document.getElementById('matching-patterns-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const params = new URLSearchParams();
+      for (let [key, value] of formData.entries()) {
+        params.append(key, value);
+      }
+      
+      const resultsContainer = document.getElementById('matching-patterns-results');
+      const resultsContent = resultsContainer.querySelector('.results-content');
+      
+      // Show loading
+      resultsContainer.style.display = 'block';
+      resultsContent.innerHTML = getLoadingHTML();
+      
+      // Fetch data
+      fetch(`/hospital-staff/analytics/matching-patterns?${params.toString()}`, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        displayMatchingPatternsResults(data, resultsContent);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        resultsContent.innerHTML = getErrorHTML(error.message);
+      });
+    });
+    
+    // Helper functions
+    function getLoadingHTML() {
+      return `
+        <div class="has-text-centered p-5">
+          <span class="icon is-large">
+            <i class="fas fa-spinner fa-spin fa-3x"></i>
+          </span>
+          <p class="mt-3">Завантаження результатів...</p>
+        </div>
+      `;
+    }
+    
+    function getErrorHTML(message) {
+      return `
+        <div class="notification is-danger">
+          <button class="delete"></button>
+          <p><strong>Помилка!</strong> ${message || 'Не вдалося завантажити дані'}</p>
+        </div>
+      `;
+    }
+    
+    function displayEmptyResults(container) {
+      container.innerHTML = `
+        <div class="notification is-warning is-light">
+          <p>За вашим запитом не знайдено результатів. Спробуйте змінити параметри пошуку.</p>
+        </div>
+      `;
+    }
+    
+    // Display functions for each query
+    function displayIdenticalNeedsResults(data, container) {
+      if (!data || data.length === 0) {
+        displayEmptyResults(container);
+        return;
+      }
+      
+      // Get reference hospital info
+      const referenceHospital = {
+        name: data[0].reference_hospital_name,
+        city: data[0].reference_city || '',
+        region: data[0].reference_region || '',
+        bloodTypes: data[0].reference_blood_types
+      };
+      
+      let html = `
+        <div class="notification is-primary is-light mb-5">
+          <div class="columns">
+            <div class="column">
+              <h4 class="title is-5">Референтна лікарня</h4>
+              <p class="subtitle is-6">${referenceHospital.name}</p>
+              <p>${referenceHospital.city} ${referenceHospital.region}</p>
+            </div>
+            <div class="column">
+              <h4 class="title is-5">Групи крові з нестачею</h4>
+              <div class="tags">
+                ${referenceHospital.bloodTypes.split(', ').map(bt => 
+                  `<span class="tag is-medium is-blood-type">${bt}</span>`
+                ).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table class="table is-fullwidth is-striped is-hoverable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Назва лікарні</th>
+                <th>Розташування</th>
+                <th>Групи крові з нестачею</th>
+                <th>Кількість груп</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      data.forEach(hospital => {
+        html += `
+          <tr>
+            <td>${hospital.hospital_id}</td>
+            <td><strong>${hospital.hospital_name}</strong></td>
+            <td>${hospital.city || ''}, ${hospital.region || ''}</td>
+            <td>
+              <div class="tags">
+                ${hospital.blood_types_str.split(', ').map(bt => 
+                  `<span class="tag is-blood-type">${bt}</span>`
+                ).join('')}
+              </div>
+            </td>
+            <td><span class="tag is-info">${hospital.blood_type_count}</span></td>
+          </tr>
+        `;
+      });
+      
+      html += `
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="notification is-light mt-4">
+          <p>Знайдено <strong>${data.length}</strong> лікарень з ідентичними потребами в крові.</p>
+          <p class="is-size-7 mt-2">Ці лікарні мають саме такий самий набір груп крові з дефіцитом, як і референтна лікарня.</p>
+        </div>
+      `;
+      
+      container.innerHTML = html;
+      
+      // Add listeners for delete buttons
+      const deleteButtons = container.querySelectorAll('.delete');
+      deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          this.parentElement.style.display = 'none';
+        });
+      });
+    }
+    
+    function displayUniversalDonorsResults(data, container) {
+      if (!data || data.length === 0) {
+        displayEmptyResults(container);
+        return;
+      }
+      
+      // Get region stats
+      const regionStats = {
+        name: data[0].region || "Вибраний регіон",
+        totalHospitals: data[0].total_region_hospitals,
+        totalRequests: data[0].total_region_requests
+      };
+      
+      let html = `
+        <div class="notification is-primary is-light mb-5">
+          <div class="columns">
+            <div class="column">
+              <h4 class="title is-5">${regionStats.name}</h4>
+              <p><strong>${regionStats.totalHospitals}</strong> лікарень в регіоні</p>
+              <p><strong>${regionStats.totalRequests}</strong> запитів на кров</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container">
+          <table class="table is-fullwidth is-striped is-hoverable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Ім'я донора</th>
+                <th>Група крові</th>
+                <th>Лікарні</th>
+                <th>Покриття регіону</th>
+                <th>К-сть донацій</th>
+                <th>Останнє донорство</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      data.forEach(donor => {
+        const coveragePercent = donor.region_coverage_percent;
+        let coverageClass = 'is-info';
+        if (coveragePercent >= 100) {
+          coverageClass = 'is-success';
+        } else if (coveragePercent >= 75) {
+          coverageClass = 'is-primary';
+        } else if (coveragePercent >= 50) {
+          coverageClass = 'is-warning';
+        }
+        
+        html += `
+          <tr>
+            <td>${donor.donor_id}</td>
+            <td>
+              <strong>${donor.first_name} ${donor.last_name}</strong>
+              <p class="is-size-7">${donor.email}</p>
+            </td>
+            <td><span class="tag is-blood-type">${donor.blood_type}</span></td>
+            <td>
+              <span class="tag ${coverageClass}">${donor.hospitals_donated_to} з ${donor.total_hospitals}</span>
+              <p class="is-size-7 mt-1">${donor.hospital_names}</p>
+            </td>
+            <td>
+              <div class="progress-wrapper">
+                <progress class="progress ${coverageClass}" value="${coveragePercent}" max="100"></progress>
+                <p class="progress-value">${Math.round(coveragePercent)}%</p>
+              </div>
+            </td>
+            <td>
+              <span class="tag is-dark">${donor.total_donations} донацій</span>
+              <p class="is-size-7">${donor.total_blood_ml} мл</p>
+            </td>
+            <td>${new Date(donor.last_donation_date).toLocaleDateString('uk-UA')}</td>
+          </tr>
+        `;
+      });
+      
+      html += `
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="notification is-light mt-4">
+          <p>Знайдено <strong>${data.length}</strong> донорів, які здавали кров в різних лікарнях регіону.</p>
+          <p class="is-size-7 mt-2">Донори з покриттям 100% здавали кров у всіх лікарнях регіону і вважаються "універсальними донорами".</p>
+        </div>
+      `;
+      
+      container.innerHTML = html;
+    }
+    
+    function displayMatchingPatternsResults(data, container) {
+      if (!data || data.length === 0) {
+        displayEmptyResults(container);
+        return;
+      }
+      
+      let html = `
+        <div class="table-container">
+          <table class="table is-fullwidth is-striped is-hoverable">
+            <thead>
+              <tr>
+                <th colspan="2">Персонал 1</th>
+                <th colspan="2">Персонал 2</th>
+                <th>Схожість</th>
+                <th>Подробиці</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      data.forEach(pair => {
+        // Determine similarity tag class
+        let similarityClass = 'is-warning';
+        if (pair.blood_type_similarity === 100) {
+          similarityClass = 'similarity-excellent';
+        } else if (pair.blood_type_similarity >= 90) {
+          similarityClass = 'similarity-good';
+        } else if (pair.blood_type_similarity >= 75) {
+          similarityClass = 'similarity-moderate';
+        }
+        
+        html += `
+          <tr>
+            <td>
+              <strong>${pair.first_name_1} ${pair.last_name_1}</strong>
+              <p class="is-size-7">${pair.role_1}</p>
+            </td>
+            <td>
+              <p>${pair.hospital_name_1}</p>
+              <div class="tags">
+                ${pair.blood_types_str_1.split(', ').map(bt => 
+                  `<span class="tag is-blood-type is-small">${bt}</span>`
+                ).join('')}
+              </div>
+            </td>
+            <td>
+              <strong>${pair.first_name_2} ${pair.last_name_2}</strong>
+              <p class="is-size-7">${pair.role_2}</p>
+            </td>
+            <td>
+              <p>${pair.hospital_name_2}</p>
+              <div class="tags">
+                ${pair.blood_types_str_2.split(', ').map(bt => 
+                  `<span class="tag is-blood-type is-small">${bt}</span>`
+                ).join('')}
+              </div>
+            </td>
+            <td>
+              <span class="tag ${similarityClass}">${Math.round(pair.blood_type_similarity)}%</span>
+              <p class="is-size-7">${pair.similarity_category}</p>
+            </td>
+            <td>
+              <button class="button is-small is-info show-details-btn" 
+                      data-staff1="${pair.staff_id_1}" 
+                      data-staff2="${pair.staff_id_2}">
+                <span class="icon is-small"><i class="fas fa-info-circle"></i></span>
+                <span>Деталі</span>
+              </button>
+              <p class="is-size-7">${pair.location_relation}</p>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += `
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="notification is-light mt-4">
+          <p>Знайдено <strong>${data.length}</strong> пар персоналу зі схожими патернами запитів на кров.</p>
+          <p class="is-size-7 mt-2">Ці працівники можуть працювати в схожих відділеннях або спеціалізаціях, і можуть отримувати користь від координації запитів.</p>
+        </div>
+      `;
+      
+      container.innerHTML = html;
+      
+      // Add listeners for detail buttons
+      const detailButtons = container.querySelectorAll('.show-details-btn');
+      detailButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const staff1Id = this.getAttribute('data-staff1');
+          const staff2Id = this.getAttribute('data-staff2');
+          alert(`Детальне порівняння працівників ID ${staff1Id} та ID ${staff2Id} буде доступне в наступних версіях.`);
+        });
+      });
+    }
+  });
+</script>
+{% endblock %}

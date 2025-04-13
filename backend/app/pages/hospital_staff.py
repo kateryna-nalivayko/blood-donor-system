@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
+from fastapi.responses import HTMLResponse
 from app.config import templates
 from app.users.dependencies import get_current_hospital_staff
 from app.users.models import User
@@ -263,5 +264,44 @@ async def custom_queries_page(
             "user": current_user,
             "staff": staff_profile,
             "hospital": hospital,
+        }
+    )
+
+
+@router.get(
+    "/advanced-analytics", 
+    response_class=HTMLResponse,
+    summary="Advanced analytics dashboard",
+    description="View advanced analytics and complex queries for blood donation system"
+)
+async def get_advanced_analytics_page(
+    request: Request,
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """
+    Serves the advanced analytics page for hospital staff.
+    This page contains complex parameterized queries for blood donation analysis.
+    """
+    staff = await HospitalStaffDAO.find_one_or_none(
+        user_id=current_user.id,
+    )
+        
+    hospital = await HospitalDAO.find_one_or_none(id=staff.hospital_id)
+    
+    # Get all hospitals for dropdowns
+    all_hospitals = await HospitalDAO.get_all_hospitals(200)
+    
+    # Get blood types for filtering
+    blood_types = [bt.value for bt in BloodType]
+    
+    return templates.TemplateResponse(
+        "hospital_staff/advanced_analytics.html",
+        {
+            "request": request,
+            "user": current_user,
+            "staff": staff,
+            "hospital": hospital,
+            "all_hospitals": all_hospitals,
+            "blood_types": blood_types
         }
     )

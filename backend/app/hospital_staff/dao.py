@@ -203,3 +203,167 @@ class HospitalStaffDAO(BaseDAO):
                 staff_list.append(staff_dict)
                     
             return staff_list
+        
+
+    @classmethod
+    async def find_staff_with_matching_request_patterns(
+        cls,
+        min_blood_types: int = 2,
+        min_similarity_percent: float = 90.0,
+        time_period_months: int = 6,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Find pairs of hospital staff who have created the same pattern of blood type requests.
+        """
+        async with async_session_maker() as session:
+            query = text("""
+            WITH staff_request_patterns AS (
+                -- Calculate the blood type request patterns for each staff member
+                SELECT 
+                    hs.id AS staff_id,
+                    u.id AS user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.email,
+                    hs.role,
+                    h.id AS hospital_id,
+                    h.name AS hospital_name,
+                    h.city,
+                    h.region,
+                    COUNT(DISTINCT br.blood_type) AS blood_type_count,
+                    ARRAY_AGG(DISTINCT br.blood_type ORDER BY br.blood_type) AS blood_types,
+                    STRING_AGG(DISTINCT br.blood_type::text, ', ' ORDER BY br.blood_type::text) AS blood_types_str,
+                    COUNT(br.id) AS request_count,
+                    SUM(CASE WHEN br.status = 'FULFILLED' THEN 1 ELSE 0 END) AS fulfilled_count,
+                    AVG(br.urgency_level) AS avg_urgency
+                FROM 
+                    hospital_staff hs
+                JOIN 
+                    users u ON hs.user_id = u.id
+                JOIN 
+                    hospitals h ON hs.hospital_id = h.id
+                JOIN 
+                    blood_requests br ON hs.id = br.staff_id
+                WHERE 
+                    br.request_date >= CURRENT_DATE - (:months * INTERVAL '1 month')
+                GROUP BY 
+                    hs.id, u.id, u.first_name, u.last_name, u.email, hs.role, h.id, h.name, h.city, h.region
+                HAVING 
+                    COUNT(DISTINCT br.blood_type) >= :min_blood_types
+            ),
+            staff_pairs AS (
+                -- Generate all possible pairs of staff with matching request patterns
+                SELECT 
+                    a.staff_id AS staff_id_1,
+                    a.user_id AS user_id_1,
+                    a.first_name AS first_name_1,
+                    a.last_name AS last_name_1,
+                    a.role AS role_1,
+                    a.hospital_id AS hospital_id_1,
+                    a.hospital_name AS hospital_name_1,
+                    a.city AS city_1,
+                    a.region AS region_1,
+                    a.blood_types AS blood_types_1,
+                    a.blood_types_str AS blood_types_str_1,
+                    a.request_count AS request_count_1,
+                    a.fulfilled_count AS fulfilled_count_1,
+                    a.avg_urgency AS avg_urgency_1,
+                    
+                    b.staff_id AS staff_id_2,
+                    b.user_id AS user_id_2,
+                    b.first_name AS first_name_2,
+                    b.last_name AS last_name_2,
+                    b.role AS role_2,
+                    b.hospital_id AS hospital_id_2,
+                    b.hospital_name AS hospital_name_2,
+                    b.city AS city_2,
+                    b.region AS region_2,
+                    b.blood_types AS blood_types_2,
+                    b.blood_types_str AS blood_types_str_2,
+                    b.request_count AS request_count_2,
+                    b.fulfilled_count AS fulfilled_count_2,
+                    b.avg_urgency AS avg_urgency_2,
+                    
+                    -- Calculate similarity metrics
+                    CASE 
+                        WHEN a.blood_types = b.blood_types THEN 100.0
+                        ELSE
+                            -- Calculate Jaccard similarity
+                            (
+                                (SELECT COUNT(*) FROM 
+                                    (SELECT UNNEST(a.blood_types) INTERSECT SELECT UNNEST(b.blood_types)) as intersection
+                                ) * 100.0 / 
+                                (SELECT COUNT(*) FROM 
+                                    (SELECT UNNEST(a.blood_types) UNION SELECT UNNEST(b.blood_types)) as union_set
+                                )
+                            )
+                    END AS blood_type_similarity,
+                    
+                    ABS(a.avg_urgency - b.avg_urgency) AS urgency_diff,
+                    ABS(
+                        (a.fulfilled_count * 100.0 / NULLIF(a.request_count, 0)) - 
+                        (b.fulfilled_count * 100.0 / NULLIF(b.request_count, 0))
+                    ) AS fulfillment_rate_diff,
+                    
+                    (SELECT COUNT(*) FROM UNNEST(a.blood_types) bt) AS blood_type_count,
+                    (
+                        CASE 
+                            WHEN a.hospital_id = b.hospital_id THEN 'Same Hospital'
+                            WHEN a.region = b.region THEN 'Same Region'
+                            ELSE 'Different Regions'
+                        END
+                    ) AS location_relation
+                FROM 
+                    staff_request_patterns a
+                JOIN 
+                    staff_request_patterns b ON a.staff_id < b.staff_id
+                WHERE
+                    -- Only include pairs with high blood type similarity
+                    CASE 
+                        WHEN a.blood_types = b.blood_types THEN 100.0
+                        ELSE
+                            (
+                                (SELECT COUNT(*) FROM 
+                                    (SELECT UNNEST(a.blood_types) INTERSECT SELECT UNNEST(b.blood_types)) as intersection
+                                ) * 100.0 / 
+                                (SELECT COUNT(*) FROM 
+                                    (SELECT UNNEST(a.blood_types) UNION SELECT UNNEST(b.blood_types)) as union_set
+                                )
+                            )
+                    END >= :min_similarity
+            )
+            -- Final selection
+            SELECT
+                sp.*,
+                CASE 
+                    WHEN blood_type_similarity = 100.0 THEN 'Identical'
+                    WHEN blood_type_similarity >= 90.0 THEN 'Very Similar'
+                    WHEN blood_type_similarity >= 75.0 THEN 'Similar'
+                    ELSE 'Partial Match'
+                END AS similarity_category,
+                (
+                    blood_type_similarity - 
+                    LEAST(urgency_diff * 5.0, 20.0) - 
+                    LEAST(fulfillment_rate_diff * 0.25, 15.0)
+                ) AS overall_similarity_score
+            FROM 
+                staff_pairs sp
+            ORDER BY 
+                blood_type_similarity DESC,
+                overall_similarity_score DESC,
+                blood_type_count DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "min_blood_types": min_blood_types,
+                    "min_similarity": min_similarity_percent,
+                    "months": time_period_months,
+                    "limit": limit
+                }
+            )
+            
+            return [dict(row) for row in result.mappings()]

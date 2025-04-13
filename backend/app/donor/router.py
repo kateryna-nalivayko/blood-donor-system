@@ -1,7 +1,7 @@
 from datetime import date
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from app.donor.schemas import DonorBloodTypeQueryParams, DonorEligibilityUpdate, DonorProfileCreate, DonorProfileResponse, DonorWithDonationsResponse, EligibleDonorParams, EligibleDonorResponse, MultiHospitalDonorParams, MultiHospitalDonorResponse
+from app.donor.schemas import DonorBloodTypeQueryParams, DonorEligibilityUpdate, DonorProfileCreate, DonorProfileResponse, DonorWithDonationsResponse, EligibleDonorParams, EligibleDonorResponse, MultiHospitalDonorParams, MultiHospitalDonorResponse, UniversalDonorRequest, UniversalDonorResponse
 from app.donor.dao import DonorDAO
 from app.users.dao import UsersDAO
 from app.users.models import User
@@ -335,3 +335,26 @@ async def get_multi_hospital_donors(
         return []
     
     return donors
+
+
+@router.get(
+    "/analytics/universal-donors",
+    response_model=List[UniversalDonorResponse],
+    summary="Find universal donors by region",
+    description="Finds donors who have donated to all hospitals in a specific region"
+)
+async def get_universal_donors_by_region(
+    query: UniversalDonorRequest = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """
+    Find donors who have donated to all hospitals in a specified region.
+    These donors can be considered "universal donors" for the region and are
+    valuable resources for regional blood donation programs.
+    """
+    return await DonorDAO.find_universal_donors_by_region(
+        region=query.region,
+        min_donations=query.min_donations,
+        time_period_months=query.time_period_months,
+        limit=query.limit
+    )

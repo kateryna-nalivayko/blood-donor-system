@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
-from typing import Optional
+from typing import List, Optional
 from app.hospital.schemas import (
     HospitalCreate, 
     HospitalUpdate, 
     HospitalResponse, 
     HospitalListResponse,
-    HospitalStatsResponse
+    HospitalStatsResponse,
+    IdenticalNeedsRequest,
+    IdenticalNeedsResponse
 )
 from app.hospital.dao import HospitalDAO
-from app.users.dependencies import get_current_admin_user
+from app.users.dependencies import get_current_admin_user, get_current_hospital_staff
 from app.users.models import User
 import math
 
@@ -150,3 +152,25 @@ async def get_hospital_stats(
         )
     
     return stats
+
+
+@router.get(
+    "/analytics/identical-needs",
+    response_model=List[IdenticalNeedsResponse],
+    summary="Find hospitals with identical blood type needs",
+    description="Finds hospitals that have exactly the same blood type shortage patterns as a reference hospital"
+)
+async def get_hospitals_with_identical_needs(
+    query: IdenticalNeedsRequest = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """
+    Find hospitals with identical blood type needs as a reference hospital.
+    Useful for coordinating donation campaigns across hospitals with similar shortages.
+    """
+    return await HospitalDAO.find_hospitals_with_identical_needs(
+        reference_hospital_id=query.reference_hospital_id,
+        time_period_days=query.time_period_days,
+        min_shortage_percent=query.min_shortage_percent,
+        limit=query.limit
+    )

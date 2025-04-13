@@ -107,3 +107,21 @@ class HospitalStatsResponse(BaseModel):
     scheduled_donations: int = 0
     completed_donations: int = 0
     
+
+class IdenticalNeedsRequest(BaseModel):
+    reference_hospital_id: int = Field(..., description="ID of the reference hospital", example=1)
+    time_period_days: int = Field(30, description="Look at requests from the past N days", ge=1, le=365)
+    min_shortage_percent: float = Field(25.0, description="Minimum shortage percentage to consider", ge=0, le=100)
+    limit: int = Field(50, description="Maximum number of results", ge=1, le=100)
+
+class IdenticalNeedsResponse(BaseModel):
+    hospital_id: int
+    hospital_name: str
+    city: Optional[str] = None
+    region: Optional[str] = None
+    blood_types_str: str
+    blood_type_count: int
+    reference_hospital_name: str
+    reference_city: Optional[str] = None
+    reference_region: Optional[str] = None
+    reference_blood_types: str

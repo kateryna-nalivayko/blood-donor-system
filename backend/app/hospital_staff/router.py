@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.hospital_staff.dao import HospitalStaffDAO
-from app.hospital_staff.schemas import HospitalStaffProfileCreate, HospitalStaffProfileResponse, StaffPerformanceParams, StaffPerformanceResponse
+from app.hospital_staff.schemas import HospitalStaffProfileCreate, HospitalStaffProfileResponse, MatchingStaffPatternsRequest, MatchingStaffPatternsResponse, StaffPerformanceParams, StaffPerformanceResponse
 from app.users.dao import UsersDAO
 from app.users.dependencies import get_admin_or_hospital_staff, get_current_hospital_staff, get_current_user
 from app.users.models import User
@@ -104,3 +104,26 @@ async def get_staff_by_performance(
         return []
     
     return staff
+
+
+@router.get(
+    "/analytics/matching-patterns",
+    response_model=List[MatchingStaffPatternsResponse],
+    summary="Find staff with matching request patterns",
+    description="Finds pairs of hospital staff who have created the same pattern of blood type requests"
+)
+async def get_staff_with_matching_patterns(
+    query: MatchingStaffPatternsRequest = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """
+    Find pairs of hospital staff who have created the same pattern of blood type requests.
+    This can help identify staff with similar specialties or departments that may benefit
+    from coordination or knowledge sharing.
+    """
+    return await HospitalStaffDAO.find_staff_with_matching_request_patterns(
+        min_blood_types=query.min_blood_types,
+        min_similarity_percent=query.min_similarity_percent,
+        time_period_months=query.time_period_months,
+        limit=query.limit
+    )

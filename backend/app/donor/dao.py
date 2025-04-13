@@ -298,7 +298,6 @@ class DonorDAO(BaseDAO):
                  "months": months, "limit": limit}
             )
             
-            # Rest of the method remains the same
             
             result = await session.execute(
                 query, 
@@ -316,3 +315,255 @@ class DonorDAO(BaseDAO):
                 donors.append(donor_dict)
                     
             return donors
+        
+
+    @classmethod
+    async def find_universal_donors_by_region(
+        cls,
+        region: str,
+        min_donations: int = 1,
+        time_period_months: int = 12,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Find donors who have donated to all hospitals in a specific region.
+        
+        Args:
+            region: Region name to search within
+            min_donations: Minimum number of donations per hospital
+            time_period_months: Look at donations from the past N months
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of donors who have donated to all hospitals in the region
+        """
+        async with async_session_maker() as session:
+            query = text("""
+            WITH region_hospitals AS (
+                -- Get all hospitals in the specified region
+                SELECT 
+                    id, 
+                    name,
+                    city
+                FROM 
+                    hospitals
+                WHERE 
+                    region = :region
+            ),
+            region_hospital_count AS (
+                -- Count how many hospitals are in the region
+                SELECT COUNT(*) AS total_hospitals
+                FROM region_hospitals
+            ),
+            donor_hospital_donations AS (
+                -- Calculate how many hospitals each donor has donated to in the region
+                SELECT 
+                    d.id AS donor_id,
+                    d.user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.email,
+                    u.phone_number,
+                    d.blood_type,
+                    COUNT(DISTINCT don.hospital_id) AS hospitals_donated_to,
+                    COUNT(don.id) AS total_donations,
+                    SUM(don.blood_amount_ml) AS total_blood_ml,
+                    STRING_AGG(DISTINCT h.name, ', ' ORDER BY h.name) AS hospital_names,
+                    STRING_AGG(DISTINCT h.city, ', ' ORDER BY h.city) AS hospital_cities,
+                    MIN(don.donation_date) AS first_donation_date,
+                    MAX(don.donation_date) AS last_donation_date
+                FROM 
+                    donors d
+                JOIN 
+                    users u ON d.user_id = u.id
+                JOIN 
+                    donations don ON d.id = don.donor_id
+                JOIN 
+                    hospitals h ON don.hospital_id = h.id
+                WHERE 
+                    h.region = :region
+                    AND don.status = 'COMPLETED'
+                    AND don.donation_date >= CURRENT_DATE - INTERVAL ':months months'
+                GROUP BY 
+                    d.id, d.user_id, u.first_name, u.last_name, u.email, u.phone_number, d.blood_type
+                HAVING
+                    -- Make sure each hospital has at least min_donations donations
+                    COUNT(DISTINCT don.hospital_id) > 0 AND
+                    COUNT(don.id) >= COUNT(DISTINCT don.hospital_id) * :min_donations
+            ),
+            universal_donors AS (
+                -- Find donors who have donated to all hospitals in the region
+                SELECT 
+                    dhd.*,
+                    rhc.total_hospitals,
+                    CASE 
+                        WHEN dhd.hospitals_donated_to = rhc.total_hospitals THEN true
+                        ELSE false
+                    END AS is_universal_donor,
+                    -- Calculate percentage of region covered
+                    (dhd.hospitals_donated_to * 100.0 / NULLIF(rhc.total_hospitals, 0)) AS region_coverage_percent
+                FROM 
+                    donor_hospital_donations dhd
+                CROSS JOIN 
+                    region_hospital_count rhc
+            )
+            -- Final selection
+            SELECT 
+                ud.*,
+                -- Add extra stats about the region
+                (
+                    SELECT COUNT(DISTINCT br.id)
+                    FROM blood_requests br
+                    JOIN hospitals h ON br.hospital_id = h.id
+                    WHERE h.region = :region
+                    AND br.request_date >= CURRENT_DATE - INTERVAL ':months months'
+                ) AS total_region_requests,
+                (
+                    SELECT COUNT(DISTINCT h.id)
+                    FROM hospitals h
+                    WHERE h.region = :region
+                ) AS total_region_hospitals
+            FROM 
+                universal_donors ud
+            ORDER BY 
+                ud.region_coverage_percent DESC,
+                ud.total_donations DESC,
+                ud.total_blood_ml DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "region": region,
+                    "min_donations": min_donations,
+                    "months": time_period_months,
+                    "limit": limit
+                }
+            )
+            
+            return [dict(row) for row in result.mappings()]
+        
+    @classmethod
+    async def find_universal_donors_by_region(
+        cls,
+        region: str,
+        min_donations: int = 1,
+        time_period_months: int = 12,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Find donors who have donated blood in all hospitals within a region.
+        """
+        async with async_session_maker() as session:
+            query = text("""
+            WITH region_hospitals AS (
+                -- All hospitals in the region
+                SELECT
+                    h.id,
+                    h.name,
+                    h.city
+                FROM
+                    hospitals h
+                WHERE
+                    h.region = :region
+            ),
+            region_stats AS (
+                -- Get region statistics
+                SELECT
+                    :region AS region,
+                    COUNT(h.id) AS total_region_hospitals,
+                    (SELECT COUNT(*) FROM blood_requests br
+                     WHERE br.hospital_id IN (SELECT h2.id FROM hospitals h2 WHERE h2.region = :region)
+                     AND br.created_at >= NOW() - (:months * interval '1 month')
+                    ) AS total_region_requests
+                FROM 
+                    hospitals h
+                WHERE
+                    h.region = :region
+            ),
+            donor_donations AS (
+                -- Count donations per donor per hospital in the region
+                SELECT
+                    d.id AS donor_id,
+                    d.user_id,
+                    u.first_name,
+                    u.last_name,
+                    u.email,
+                    d.blood_type,
+                    don.hospital_id,
+                    COUNT(don.id) AS donations_count,
+                    SUM(don.blood_amount_ml) AS total_blood_ml,
+                    MIN(don.donation_date) AS first_donation_date,
+                    MAX(don.donation_date) AS last_donation_date
+                FROM
+                    donors d
+                JOIN
+                    users u ON d.user_id = u.id
+                JOIN
+                    donations don ON d.id = don.donor_id
+                JOIN
+                    hospitals h ON don.hospital_id = h.id
+                WHERE
+                    h.region = :region
+                    AND don.status = 'COMPLETED'
+                    AND don.donation_date >= NOW() - (:months * interval '1 month')
+                GROUP BY
+                    d.id, d.user_id, u.first_name, u.last_name, u.email, d.blood_type, don.hospital_id
+                HAVING
+                    COUNT(don.id) >= :min_donations
+            ),
+            donor_hospital_coverage AS (
+                -- Summarize which donors donated to which hospitals
+                SELECT
+                    dd.donor_id,
+                    dd.user_id,
+                    dd.first_name,
+                    dd.last_name,
+                    dd.email,
+                    dd.blood_type,
+                    COUNT(DISTINCT dd.hospital_id) AS hospitals_donated_to,
+                    (SELECT COUNT(*) FROM region_hospitals) AS total_hospitals,
+                    COUNT(DISTINCT dd.hospital_id) * 100.0 / 
+                        NULLIF((SELECT COUNT(*) FROM region_hospitals), 0) AS region_coverage_percent,
+                    STRING_AGG(h.name, ', ' ORDER BY h.name) AS hospital_names,
+                    STRING_AGG(DISTINCT h.city, ', ' ORDER BY h.city) AS hospital_cities,
+                    MIN(dd.first_donation_date) AS first_donation_date,
+                    SUM(dd.donations_count) AS total_donations,
+                    SUM(dd.total_blood_ml) AS total_blood_ml,
+                    MAX(dd.last_donation_date) AS last_donation_date
+                FROM
+                    donor_donations dd
+                JOIN
+                    hospitals h ON dd.hospital_id = h.id
+                GROUP BY
+                    dd.donor_id, dd.user_id, dd.first_name, dd.last_name, dd.email, dd.blood_type
+            )
+            -- Final selection
+            SELECT
+                dhc.*,
+                rs.total_region_hospitals,
+                rs.total_region_requests,
+                dhc.hospitals_donated_to = dhc.total_hospitals AS is_universal_donor
+            FROM
+                donor_hospital_coverage dhc
+            CROSS JOIN
+                region_stats rs
+            ORDER BY
+                dhc.region_coverage_percent DESC,
+                dhc.total_donations DESC,
+                dhc.total_blood_ml DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "region": region,
+                    "min_donations": min_donations,
+                    "months": time_period_months,
+                    "limit": limit
+                }
+            )
+            
+            return [dict(row) for row in result.mappings()]

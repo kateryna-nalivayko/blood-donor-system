@@ -309,3 +309,31 @@ class MultiHospitalDonorResponse(BaseModel):
     donation_count: int
     total_donated_ml: int
     hospital_names: str
+
+
+class UniversalDonorRequest(BaseModel):
+    region: str = Field(..., description="Region name to search within", example="Київська область")
+    min_donations: int = Field(1, description="Minimum number of donations per hospital", ge=1)
+    time_period_months: int = Field(12, description="Look at donations from the past N months", ge=1, le=60)
+    limit: int = Field(50, description="Maximum number of results", ge=1, le=100)
+
+class UniversalDonorResponse(BaseModel):
+    donor_id: int
+    user_id: int
+    first_name: str
+    last_name: str
+    email: str
+    phone_number: Optional[str] = None
+    blood_type: str
+    hospitals_donated_to: int
+    total_hospitals: int
+    total_donations: int
+    total_blood_ml: int
+    hospital_names: str
+    hospital_cities: Optional[str] = None
+    first_donation_date: Optional[datetime] = None
+    last_donation_date: Optional[datetime] = None
+    is_universal_donor: bool
+    region_coverage_percent: float
+    total_region_requests: int
+    total_region_hospitals: int
