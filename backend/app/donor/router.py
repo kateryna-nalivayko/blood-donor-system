@@ -1,7 +1,7 @@
 from datetime import date
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from app.donor.schemas import DonorBloodTypeQueryParams, DonorEligibilityUpdate, DonorProfileCreate, DonorProfileResponse, DonorWithDonationsResponse
+from app.donor.schemas import DonorBloodTypeQueryParams, DonorEligibilityUpdate, DonorProfileCreate, DonorProfileResponse, DonorWithDonationsResponse, EligibleDonorParams, EligibleDonorResponse
 from app.donor.dao import DonorDAO
 from app.users.dao import UsersDAO
 from app.users.models import User
@@ -299,3 +299,19 @@ async def get_donors_by_blood_type_min_donations(
         return []
     
     return donors
+
+
+@router.get("/query/eligible-donors-by-blood-type", response_model=List[EligibleDonorResponse])
+async def get_eligible_donors_by_blood_type(
+    query_params: EligibleDonorParams = Depends(),
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """Find eligible donors with specific blood type who haven't donated in X days"""
+    
+    eligible_donors = await DonorDAO.find_eligible_donors_by_blood_type(
+        blood_type=query_params.blood_type,
+        days=query_params.days_since_donation,
+        limit=query_params.limit
+    )
+    
+    return eligible_donors

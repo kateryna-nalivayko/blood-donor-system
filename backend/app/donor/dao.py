@@ -157,3 +157,91 @@ class DonorDAO(BaseDAO):
                 donors.append(donor_dict)
                 
             return donors
+        
+
+    @classmethod
+    async def find_eligible_donors_by_blood_type(
+        cls,
+        blood_type: str,
+        days: int = 56,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Find eligible donors with specific blood type who haven't donated in X days.
+        
+        Args:
+            blood_type: Blood type to search for
+            days: Minimum number of days since last donation
+            limit: Maximum number of results to return
+            
+        Returns:
+            List of eligible donors with their information
+        """
+        blood_type_enum = None
+        for bt in BloodType:
+            if bt.value == blood_type:
+                blood_type_enum = bt.name
+                break
+                
+        if not blood_type_enum:
+            return []
+        
+        async with async_session_maker() as session:
+            query = text("""
+            SELECT 
+                u.id AS user_id,
+                d.id AS donor_id,
+                u.first_name, 
+                u.last_name, 
+                u.email,
+                u.phone_number,
+                d.blood_type,
+                d.last_donation_date,
+                CASE 
+                    WHEN d.last_donation_date IS NOT NULL THEN 
+                        (CURRENT_DATE - d.last_donation_date)
+                    ELSE NULL
+                END AS days_since_donation,
+                d.is_eligible,
+                DATE_PART('year', AGE(CURRENT_DATE, d.date_of_birth)) AS age
+            FROM 
+                users u
+            JOIN 
+                donors d ON u.id = d.user_id
+            WHERE 
+                d.blood_type = :blood_type
+                AND d.is_eligible = TRUE
+                AND (
+                    d.last_donation_date IS NULL 
+                    OR (CURRENT_DATE - d.last_donation_date) >= :days
+                )
+                AND DATE_PART('year', AGE(CURRENT_DATE, d.date_of_birth)) BETWEEN 18 AND 65
+            ORDER BY 
+                d.last_donation_date ASC NULLS FIRST,
+                u.last_name, 
+                u.first_name
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {"blood_type": blood_type_enum, "days": days, "limit": limit}
+            )
+            
+            donors = []
+            for row in result.mappings():  
+                donor_dict = dict(row)
+                for bt in BloodType:
+                    if bt.name == donor_dict['blood_type']:
+                        donor_dict['blood_type'] = bt.value
+                        break
+                
+                donor_dict['can_donate'] = (
+                    donor_dict['is_eligible'] and 
+                    (donor_dict['age'] >= 18 and donor_dict['age'] <= 65) and
+                    (donor_dict['days_since_donation'] is None or donor_dict['days_since_donation'] >= days)
+                )
+                
+                donors.append(donor_dict)
+                    
+            return donors

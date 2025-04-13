@@ -221,3 +221,61 @@ class DonorWithDonationsResponse(BaseModel):
             }
         }
     }
+
+class EligibleDonorParams(BaseModel):
+    blood_type: str = Field(..., description="Blood type to filter by")
+    days_since_donation: int = Field(56, description="Minimum days since last donation", ge=0)
+    limit: int = Field(100, description="Maximum number of results", le=1000)
+    
+    @field_validator('blood_type')
+    def validate_blood_type(cls, v):
+        try:
+            BloodType(v)
+            return v
+        except ValueError:
+            valid_types = [t.value for t in BloodType]
+            raise ValueError(f"Invalid blood type. Must be one of: {', '.join(valid_types)}")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "blood_type": "O+",
+                "days_since_donation": 60,
+                "limit": 50
+            }
+        }
+    }
+
+
+class EligibleDonorResponse(BaseModel):
+    user_id: int
+    donor_id: int
+    first_name: str
+    last_name: str
+    email: str
+    phone_number: Optional[str] = None
+    blood_type: str
+    last_donation_date: Optional[date] = None
+    days_since_donation: Optional[int] = None
+    is_eligible: bool
+    can_donate: bool
+    age: Optional[int] = None
+    
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "user_id": 42,
+                "donor_id": 15,
+                "first_name": "John",
+                "last_name": "Doe",
+                "email": "john.doe@example.com",
+                "phone_number": "+380991234567",
+                "blood_type": "A+",
+                "last_donation_date": "2025-01-15",
+                "days_since_donation": 60,
+                "is_eligible": True,
+                "can_donate": True,
+                "age": 35
+            }
+        }
+    }
