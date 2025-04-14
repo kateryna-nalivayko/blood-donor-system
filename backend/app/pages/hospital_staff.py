@@ -305,3 +305,13 @@ async def get_advanced_analytics_page(
             "blood_types": blood_types
         }
     )
+
+
+
+@router.get("/all-tables", response_class=HTMLResponse)
+async def hospital_staff_all_tables(request: Request):
+    """Page for viewing all database tables."""
+    return templates.TemplateResponse(
+        "hospital_staff/all_tables.html",
+        {"request": request}
+    )

@@ -1,0 +1,744 @@
+{% extends "base.html" %}
+
+{% block title %}Перегляд усіх таблиць - Blood Donor System{% endblock %}
+
+{% block head %}
+<style>
+  .table-container {
+    position: relative;
+    overflow-x: auto;
+  }
+  
+  .tabs-content > div {
+    display: none;
+  }
+  
+  .tabs-content > div.is-active {
+    display: block;
+  }
+  
+  .pagination-info {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .field.has-addons .button.is-selected {
+    background-color: #cc0f35;
+    color: white;
+  }
+
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+  }
+
+  .refresh-btn {
+    margin-left: 1rem;
+  }
+
+  .filter-container {
+    margin-bottom: 1rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="box">
+    <h1 class="title has-text-centered has-text-danger">
+      <span class="icon"><i class="fas fa-table"></i></span>
+      <span>Перегляд усіх таблиць бази даних</span>
+    </h1>
+    
+    <div class="notification is-light">
+      <p>Тут ви можете переглядати дані з усіх таблиць бази даних системи донорства крові. Виберіть потрібну таблицю та використовуйте фільтри для пошуку.</p>
+    </div>
+    
+    <!-- Tabs navigation -->
+    <div class="tabs is-boxed">
+      <ul>
+        <li class="is-active" data-target="users-tab">
+          <a>
+            <span class="icon"><i class="fas fa-users"></i></span>
+            <span>Користувачі</span>
+          </a>
+        </li>
+        <li data-target="donors-tab">
+          <a>
+            <span class="icon"><i class="fas fa-user-plus"></i></span>
+            <span>Донори</span>
+          </a>
+        </li>
+        <li data-target="hospitals-tab">
+          <a>
+            <span class="icon"><i class="fas fa-hospital"></i></span>
+            <span>Лікарні</span>
+          </a>
+        </li>
+        <li data-target="hospital_staff-tab">
+          <a>
+            <span class="icon"><i class="fas fa-user-md"></i></span>
+            <span>Персонал</span>
+          </a>
+        </li>
+        <li data-target="blood_requests-tab">
+          <a>
+            <span class="icon"><i class="fas fa-tint"></i></span>
+            <span>Запити на кров</span>
+          </a>
+        </li>
+        <li data-target="donations-tab">
+          <a>
+            <span class="icon"><i class="fas fa-heartbeat"></i></span>
+            <span>Донації</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+    
+    <!-- Tab contents -->
+    <div class="tabs-content">
+      <!-- Users tab -->
+      <div id="users-tab" class="is-active">
+        <div class="filter-container">
+          <div class="field has-addons">
+            <div class="control is-expanded">
+              <input class="input" type="text" id="users-search" placeholder="Пошук за ім'ям, email, або номером телефону">
+            </div>
+            <div class="control">
+              <button class="button is-danger search-btn" data-table="users">
+                <span class="icon"><i class="fas fa-search"></i></span>
+              </button>
+            </div>
+            <div class="control">
+              <button class="button refresh-btn" data-table="users">
+                <span class="icon"><i class="fas fa-sync-alt"></i></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container" id="users-table-container">
+          <div class="loading-overlay">
+            <span class="icon has-text-danger is-large">
+              <i class="fas fa-circle-notch fa-spin fa-2x"></i>
+            </span>
+          </div>
+          <table class="table is-fullwidth is-striped">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Ім'я</th>
+                <th>Прізвище</th>
+                <th>Email</th>
+                <th>Телефон</th>
+                <th>Донор</th>
+                <th>Персонал</th>
+                <th>Адмін</th>
+                <th>Дата створення</th>
+              </tr>
+            </thead>
+            <tbody id="users-data"></tbody>
+          </table>
+        </div>
+        
+        <div class="pagination-container">
+          <nav class="pagination" role="navigation" aria-label="pagination">
+            <a class="pagination-previous" disabled>Попередня</a>
+            <a class="pagination-next">Наступна</a>
+            <ul class="pagination-list"></ul>
+          </nav>
+          <div class="pagination-info has-text-centered">
+            Показано <span class="showing-from">1</span> - <span class="showing-to">25</span> з <span class="total-items">0</span> записів
+          </div>
+        </div>
+      </div>
+      
+      <!-- Donors tab -->
+      <div id="donors-tab">
+        <div class="filter-container">
+          <div class="field has-addons">
+            <div class="control is-expanded">
+              <input class="input" type="text" id="donors-search" placeholder="Пошук за групою крові або ID">
+            </div>
+            <div class="control">
+              <button class="button is-danger search-btn" data-table="donors">
+                <span class="icon"><i class="fas fa-search"></i></span>
+              </button>
+            </div>
+            <div class="control">
+              <button class="button refresh-btn" data-table="donors">
+                <span class="icon"><i class="fas fa-sync-alt"></i></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container" id="donors-table-container">
+          <div class="loading-overlay">
+            <span class="icon has-text-danger is-large">
+              <i class="fas fa-circle-notch fa-spin fa-2x"></i>
+            </span>
+          </div>
+          <table class="table is-fullwidth is-striped">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User ID</th>
+                <th>Стать</th>
+                <th>Дата народження</th>
+                <th>Група крові</th>
+                <th>Вага (кг)</th>
+                <th>Зріст (см)</th>
+                <th>Може донорувати</th>
+                <th>К-сть донацій</th>
+                <th>Остання донація</th>
+              </tr>
+            </thead>
+            <tbody id="donors-data"></tbody>
+          </table>
+        </div>
+        
+        <div class="pagination-container">
+          <nav class="pagination" role="navigation" aria-label="pagination">
+            <a class="pagination-previous" disabled>Попередня</a>
+            <a class="pagination-next">Наступна</a>
+            <ul class="pagination-list"></ul>
+          </nav>
+          <div class="pagination-info has-text-centered">
+            Показано <span class="showing-from">1</span> - <span class="showing-to">25</span> з <span class="total-items">0</span> записів
+          </div>
+        </div>
+      </div>
+    
+      <!-- Hospitals tab -->
+      <div id="hospitals-tab">
+        <div class="filter-container">
+          <div class="field has-addons">
+            <div class="control is-expanded">
+              <input class="input" type="text" id="hospitals-search" placeholder="Пошук за назвою, містом або регіоном">
+            </div>
+            <div class="control">
+              <button class="button is-danger search-btn" data-table="hospitals">
+                <span class="icon"><i class="fas fa-search"></i></span>
+              </button>
+            </div>
+            <div class="control">
+              <button class="button refresh-btn" data-table="hospitals">
+                <span class="icon"><i class="fas fa-sync-alt"></i></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container" id="hospitals-table-container">
+          <div class="loading-overlay">
+            <span class="icon has-text-danger is-large">
+              <i class="fas fa-circle-notch fa-spin fa-2x"></i>
+            </span>
+          </div>
+          <table class="table is-fullwidth is-striped">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Назва</th>
+                <th>Тип</th>
+                <th>Адреса</th>
+                <th>Місто</th>
+                <th>Область</th>
+                <th>Телефон</th>
+                <th>Email</th>
+                <th>Створено</th>
+              </tr>
+            </thead>
+            <tbody id="hospitals-data"></tbody>
+          </table>
+        </div>
+        
+        <div class="pagination-container">
+          <nav class="pagination" role="navigation" aria-label="pagination">
+            <a class="pagination-previous" disabled>Попередня</a>
+            <a class="pagination-next">Наступна</a>
+            <ul class="pagination-list"></ul>
+          </nav>
+          <div class="pagination-info has-text-centered">
+            Показано <span class="showing-from">1</span> - <span class="showing-to">25</span> з <span class="total-items">0</span> записів
+          </div>
+        </div>
+      </div>
+        
+      <!-- Hospital staff tab -->
+      <div id="hospital_staff-tab">
+        <div class="filter-container">
+          <div class="field has-addons">
+            <div class="control is-expanded">
+              <input class="input" type="text" id="hospital_staff-search" placeholder="Пошук за іменем, лікарнею або відділом">
+            </div>
+            <div class="control">
+              <button class="button is-danger search-btn" data-table="hospital_staff">
+                <span class="icon"><i class="fas fa-search"></i></span>
+              </button>
+            </div>
+            <div class="control">
+              <button class="button refresh-btn" data-table="hospital_staff">
+                <span class="icon"><i class="fas fa-sync-alt"></i></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container" id="hospital_staff-table-container">
+          <div class="loading-overlay">
+            <span class="icon has-text-danger is-large">
+              <i class="fas fa-circle-notch fa-spin fa-2x"></i>
+            </span>
+          </div>
+          <table class="table is-fullwidth is-striped">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Співробітник</th>
+                <th>Лікарня</th>
+                <th>Місто</th>
+                <th>Роль</th>
+                <th>Відділення</th>
+                <th>Дата реєстрації</th>
+              </tr>
+            </thead>
+            <tbody id="hospital_staff-data"></tbody>
+          </table>
+        </div>
+        
+        <div class="pagination-container">
+          <nav class="pagination" role="navigation" aria-label="pagination">
+            <a class="pagination-previous" disabled>Попередня</a>
+            <a class="pagination-next">Наступна</a>
+            <ul class="pagination-list"></ul>
+          </nav>
+          <div class="pagination-info has-text-centered">
+            Показано <span class="showing-from">1</span> - <span class="showing-to">25</span> з <span class="total-items">0</span> записів
+          </div>
+        </div>
+      </div>
+      
+      <!-- Blood requests tab -->
+      <div id="blood_requests-tab">
+        <div class="filter-container">
+          <div class="field has-addons">
+            <div class="control is-expanded">
+              <input class="input" type="text" id="blood_requests-search" placeholder="Пошук за групою крові, лікарнею або статусом">
+            </div>
+            <div class="control">
+              <button class="button is-danger search-btn" data-table="blood_requests">
+                <span class="icon"><i class="fas fa-search"></i></span>
+              </button>
+            </div>
+            <div class="control">
+              <button class="button refresh-btn" data-table="blood_requests">
+                <span class="icon"><i class="fas fa-sync-alt"></i></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container" id="blood_requests-table-container">
+          <div class="loading-overlay">
+            <span class="icon has-text-danger is-large">
+              <i class="fas fa-circle-notch fa-spin fa-2x"></i>
+            </span>
+          </div>
+          <table class="table is-fullwidth is-striped">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Лікарня</th>
+                <th>Група крові</th>
+                <th>Необхідно (мл)</th>
+                <th>Зібрано (мл)</th>
+                <th>Рівень терміновості</th>
+                <th>Статус</th>
+                <th>Дата запиту</th>
+                <th>Необхідно до</th>
+              </tr>
+            </thead>
+            <tbody id="blood_requests-data"></tbody>
+          </table>
+        </div>
+        
+        <div class="pagination-container">
+          <nav class="pagination" role="navigation" aria-label="pagination">
+            <a class="pagination-previous" disabled>Попередня</a>
+            <a class="pagination-next">Наступна</a>
+            <ul class="pagination-list"></ul>
+          </nav>
+          <div class="pagination-info has-text-centered">
+            Показано <span class="showing-from">1</span> - <span class="showing-to">25</span> з <span class="total-items">0</span> записів
+          </div>
+        </div>
+      </div>
+      
+      <!-- Donations tab -->
+      <div id="donations-tab">
+        <div class="filter-container">
+          <div class="field has-addons">
+            <div class="control is-expanded">
+              <input class="input" type="text" id="donations-search" placeholder="Пошук за донором, групою крові або лікарнею">
+            </div>
+            <div class="control">
+              <button class="button is-danger search-btn" data-table="donations">
+                <span class="icon"><i class="fas fa-search"></i></span>
+              </button>
+            </div>
+            <div class="control">
+              <button class="button refresh-btn" data-table="donations">
+                <span class="icon"><i class="fas fa-sync-alt"></i></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="table-container" id="donations-table-container">
+          <div class="loading-overlay">
+            <span class="icon has-text-danger is-large">
+              <i class="fas fa-circle-notch fa-spin fa-2x"></i>
+            </span>
+          </div>
+          <table class="table is-fullwidth is-striped">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Донор</th>
+                <th>Лікарня</th>
+                <th>Група крові</th>
+                <th>Кількість (мл)</th>
+                <th>Дата донації</th>
+                <th>Статус</th>
+                <th>ID запиту</th>
+              </tr>
+            </thead>
+            <tbody id="donations-data"></tbody>
+          </table>
+        </div>
+        
+        <div class="pagination-container">
+          <nav class="pagination" role="navigation" aria-label="pagination">
+            <a class="pagination-previous" disabled>Попередня</a>
+            <a class="pagination-next">Наступна</a>
+            <ul class="pagination-list"></ul>
+          </nav>
+          <div class="pagination-info has-text-centered">
+            Показано <span class="showing-from">1</span> - <span class="showing-to">25</span> з <span class="total-items">0</span> записів
+          </div>
+        </div>
+      </div>
+    </div><!-- End of tabs-content -->
+  </div><!-- End of box -->
+</div><!-- End of container -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching logic
+    const tabLinks = document.querySelectorAll('.tabs li');
+    tabLinks.forEach(tabLink => {
+      tabLink.addEventListener('click', function() {
+        const targetId = this.getAttribute('data-target');
+        
+        // Update active tab
+        tabLinks.forEach(link => link.classList.remove('is-active'));
+        this.classList.add('is-active');
+        
+        // Show target content
+        document.querySelectorAll('.tabs-content > div').forEach(content => {
+          content.classList.remove('is-active');
+        });
+        document.getElementById(targetId).classList.add('is-active');
+        
+        // Load data for the tab if not already loaded
+        loadTableData(targetId.replace('-tab', ''), 1);
+      });
+    });
+    
+    // Handle search and refresh buttons
+    document.querySelectorAll('.search-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const table = this.getAttribute('data-table');
+        const searchQuery = document.getElementById(`${table}-search`).value;
+        loadTableData(table, 1, searchQuery);
+      });
+    });
+    
+    document.querySelectorAll('.refresh-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const table = this.getAttribute('data-table');
+        document.getElementById(`${table}-search`).value = '';
+        loadTableData(table, 1);
+      });
+    });
+    
+    // Load initial data for the active tab
+    loadTableData('users', 1);
+    
+    // Function to load table data via API
+    function loadTableData(tableName, page = 1, search = '') {
+      const limit = 25;
+      const tableContainer = document.getElementById(`${tableName}-table-container`);
+      
+      if (!tableContainer) {
+        console.error(`Table container for ${tableName} not found`);
+        return;
+      }
+      
+      const loadingOverlay = tableContainer.querySelector('.loading-overlay');
+      const tableBody = document.getElementById(`${tableName}-data`);
+      
+      if (!tableBody) {
+        console.error(`Table body for ${tableName} not found`);
+        return;
+      }
+      
+      // Show loading overlay
+      loadingOverlay.style.display = 'flex';
+      
+      // Construct API URL
+      let apiUrl = `/api/tables/${tableName}?page=${page}&limit=${limit}`;
+      if (search) {
+        apiUrl += `&search=${encodeURIComponent(search)}`;
+      }
+      
+      // Fetch data
+      fetch(apiUrl)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Clear table body
+          tableBody.innerHTML = '';
+          
+          // Populate table with data
+          data.items.forEach(item => {
+            const row = document.createElement('tr');
+            
+            // Render cells based on table type
+            switch(tableName) {
+              case 'users':
+                row.innerHTML = `
+                  <td>${item.id || ''}</td>
+                  <td>${item.first_name || ''}</td>
+                  <td>${item.last_name || ''}</td>
+                  <td>${item.email || ''}</td>
+                  <td>${item.phone_number || ''}</td>
+                  <td>${item.is_donor ? '<span class="tag is-success">Так</span>' : '<span class="tag is-light">Ні</span>'}</td>
+                  <td>${item.is_hospital_staff ? '<span class="tag is-info">Так</span>' : '<span class="tag is-light">Ні</span>'}</td>
+                  <td>${item.is_admin ? '<span class="tag is-danger">Так</span>' : '<span class="tag is-light">Ні</span>'}</td>
+                  <td>${item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</td>
+                `;
+                break;
+              case 'donors':
+                row.innerHTML = `
+                  <td>${item.id || ''}</td>
+                  <td>${item.user_id || ''}</td>
+                  <td>${item.gender || ''}</td>
+                  <td>${item.date_of_birth || ''}</td>
+                  <td><span class="tag is-danger">${item.blood_type || ''}</span></td>
+                  <td>${item.weight || ''}</td>
+                  <td>${item.height || ''}</td>
+                  <td>${item.is_eligible ? '<span class="tag is-success">Так</span>' : '<span class="tag is-warning">Ні</span>'}</td>
+                  <td>${item.total_donations || 0}</td>
+                  <td>${item.last_donation_date ? new Date(item.last_donation_date).toLocaleDateString() : 'Немає'}</td>
+                `;
+                break;
+
+              case 'hospitals':
+                row.innerHTML = `
+                  <td>${item.id || ''}</td>
+                  <td>${item.name || ''}</td>
+                  <td>${item.hospital_type || ''}</td>
+                  <td>${item.address || ''}</td>
+                  <td>${item.city || ''}</td>
+                  <td>${item.region || ''}</td>
+                  <td>${item.phone_number || ''}</td>
+                  <td>${item.email || ''}</td>
+                  <td>${item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</td>
+                `;
+                break;
+              
+              case 'hospital_staff':
+                row.innerHTML = `
+                  <td>${item.id || ''}</td>
+                  <td>${item.first_name || ''} ${item.last_name || ''}</td>
+                  <td>${item.hospital_name || ''}</td>
+                  <td>${item.hospital_city || ''}</td>
+                  <td>${item.role || ''}</td>
+                  <td>${item.department || ''}</td>
+                  <td>${item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</td>
+                `;
+                break;
+              
+              case 'blood_requests':
+                const urgencyClass = item.urgency_level === 'HIGH' ? 'is-danger' : 
+                                    item.urgency_level === 'MEDIUM' ? 'is-warning' : 'is-info';
+                
+                const statusClass = item.status === 'COMPLETED' ? 'is-success' : 
+                                   item.status === 'ACTIVE' ? 'is-info' : 
+                                   item.status === 'CANCELED' ? 'is-danger' : 'is-light';
+                
+                row.innerHTML = `
+                  <td>${item.id || ''}</td>
+                  <td>${item.hospital_name || ''}</td>
+                  <td><span class="tag is-danger">${item.blood_type || ''}</span></td>
+                  <td>${item.amount_needed_ml || 0} мл</td>
+                  <td>${item.collected_amount || 0} мл</td>
+                  <td><span class="tag ${urgencyClass}">${item.urgency_level || ''}</span></td>
+                  <td><span class="tag ${statusClass}">${item.status || ''}</span></td>
+                  <td>${item.request_date ? new Date(item.request_date).toLocaleDateString() : ''}</td>
+                  <td>${item.needed_by_date ? new Date(item.needed_by_date).toLocaleDateString() : ''}</td>
+                `;
+                break;
+              
+              case 'donations':
+                const donationStatusClass = item.status === 'COMPLETED' ? 'is-success' : 
+                                         item.status === 'SCHEDULED' ? 'is-info' : 
+                                         item.status === 'CANCELED' ? 'is-danger' : 'is-light';
+                
+                row.innerHTML = `
+                  <td>${item.id || ''}</td>
+                  <td>${item.first_name || ''} ${item.last_name || ''}</td>
+                  <td>${item.hospital_name || ''}</td>
+                  <td><span class="tag is-danger">${item.blood_type || ''}</span></td>
+                  <td>${item.blood_amount_ml || 0} мл</td>
+                  <td>${item.donation_date ? new Date(item.donation_date).toLocaleDateString() : ''}</td>
+                  <td><span class="tag ${donationStatusClass}">${item.status || ''}</span></td>
+                  <td>${item.request_id ? `<a href="/pages/hospital_staff/blood-request/${item.request_id}">#${item.request_id}</a>` : 'Немає'}</td>
+                `;
+                break;
+            }
+            
+            tableBody.appendChild(row);
+          });
+          
+          // Update pagination
+          updatePagination(tableName, data.total, data.page, data.pages, limit);
+          
+          // Hide loading overlay
+          loadingOverlay.style.display = 'none';
+        })
+        .catch(error => {
+          console.error('Error fetching data:', error);
+          tableBody.innerHTML = `<tr><td colspan="10" class="has-text-centered">Помилка завантаження даних: ${error.message}</td></tr>`;
+          loadingOverlay.style.display = 'none';
+        });
+    }
+    
+    function updatePagination(tableName, total, currentPage, totalPages, limit) {
+      const container = document.getElementById(`${tableName}-tab`);
+      if (!container) {
+        console.error(`Tab container for ${tableName} not found`);
+        return;
+      }
+      
+      const paginationContainer = container.querySelector('.pagination-container');
+      if (!paginationContainer) {
+        console.error(`Pagination container for ${tableName} not found`);
+        return;
+      }
+      
+      const paginationList = paginationContainer.querySelector('.pagination-list');
+      if (!paginationList) {
+        console.error(`Pagination list for ${tableName} not found`);
+        return;
+      }
+      
+      const prevButton = paginationContainer.querySelector('.pagination-previous');
+      const nextButton = paginationContainer.querySelector('.pagination-next');
+      if (!prevButton || !nextButton) {
+        console.error(`Pagination buttons for ${tableName} not found`);
+        return;
+      }
+      
+      // Update showing text
+      const showingFrom = container.querySelector('.showing-from');
+      const showingTo = container.querySelector('.showing-to');
+      const totalItems = container.querySelector('.total-items');
+      
+      if (showingFrom && showingTo && totalItems) {
+        const from = total > 0 ? (currentPage - 1) * limit + 1 : 0;
+        const to = Math.min(currentPage * limit, total);
+        
+        showingFrom.textContent = from;
+        showingTo.textContent = to;
+        totalItems.textContent = total;
+      }
+      
+      // Update pagination buttons
+      paginationList.innerHTML = '';
+      
+      // Previous button
+      prevButton.disabled = currentPage === 1;
+      prevButton.onclick = currentPage > 1 ? () => loadTableData(tableName, currentPage - 1, document.getElementById(`${tableName}-search`).value) : null;
+      
+      // Next button
+      nextButton.disabled = currentPage === totalPages;
+      nextButton.onclick = currentPage < totalPages ? () => loadTableData(tableName, currentPage + 1, document.getElementById(`${tableName}-search`).value) : null;
+      
+      // Generate page links
+      const createPageItem = (page, isActive = false) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        
+        a.className = 'pagination-link';
+        if (isActive) a.classList.add('is-current');
+        
+        a.setAttribute('aria-label', `Page ${page}`);
+        a.textContent = page;
+        
+        if (!isActive) {
+          a.onclick = () => loadTableData(tableName, page, document.getElementById(`${tableName}-search`).value);
+        }
+        
+        li.appendChild(a);
+        return li;
+      };
+      
+      // Add first page
+      paginationList.appendChild(createPageItem(1, currentPage === 1));
+      
+      // Add ellipsis if needed
+      if (currentPage > 3) {
+        const ellipsis = document.createElement('li');
+        ellipsis.innerHTML = '<span class="pagination-ellipsis">&hellip;</span>';
+        paginationList.appendChild(ellipsis);
+      }
+      
+      // Add pages around current
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        paginationList.appendChild(createPageItem(i, i === currentPage));
+      }
+      
+      // Add ellipsis if needed
+      if (currentPage < totalPages - 2) {
+        const ellipsis = document.createElement('li');
+        ellipsis.innerHTML = '<span class="pagination-ellipsis">&hellip;</span>';
+        paginationList.appendChild(ellipsis);
+      }
+      
+      // Add last page if there are multiple pages
+      if (totalPages > 1) {
+        paginationList.appendChild(createPageItem(totalPages, currentPage === totalPages));
+      }
+    }
+  });
+</script>
+{% endblock %}
