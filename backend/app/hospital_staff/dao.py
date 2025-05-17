@@ -546,3 +546,218 @@ class HospitalStaffDAO(BaseDAO):
             )
             
             return [dict(row) for row in result.mappings()]
+            
+    @classmethod
+    async def find_seasonal_blood_request_patterns(
+        cls,
+        min_request_count: int = 10,
+        analysis_years: int = 2,
+        region: Optional[str] = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Аналізує сезонні тренди і патерни в запитах на кров різних типів.
+        
+        Виявляє закономірності в потребах різних груп крові залежно від сезону року
+        та порівнює ці тренди між різними регіонами.
+        
+        Args:
+            min_request_count: Мінімальна кількість запитів для включення групи крові в аналіз
+            analysis_years: Кількість років для аналізу
+            region: Обмеження аналізу одним регіоном (опціонально)
+            limit: Максимальна кількість результатів
+        """
+        async with async_session_maker() as session:
+            # Формуємо умову для фільтрації по регіону
+            region_filter = "TRUE" if region is None else f"h.region = '{region}'"
+            
+            query = text(f"""
+            WITH blood_requests_by_season AS (
+                -- Групуємо запити на кров за сезонами
+                SELECT 
+                    h.region,
+                    br.blood_type,
+                    -- Визначаємо сезон року
+                    CASE 
+                        WHEN EXTRACT(MONTH FROM br.request_date) IN (12, 1, 2) THEN 'Зима'
+                        WHEN EXTRACT(MONTH FROM br.request_date) IN (3, 4, 5) THEN 'Весна'
+                        WHEN EXTRACT(MONTH FROM br.request_date) IN (6, 7, 8) THEN 'Літо'
+                        WHEN EXTRACT(MONTH FROM br.request_date) IN (9, 10, 11) THEN 'Осінь'
+                    END AS season,
+                    EXTRACT(YEAR FROM br.request_date) AS year,
+                    COUNT(*) AS request_count,
+                    SUM(CASE WHEN br.urgency_level >= 8 THEN 1 ELSE 0 END) AS urgent_count,
+                    SUM(CASE WHEN br.status = 'FULFILLED' THEN 1 ELSE 0 END) AS fulfilled_count
+                FROM 
+                    blood_requests br
+                JOIN 
+                    hospitals h ON br.hospital_id = h.id
+                WHERE 
+                    br.request_date >= CURRENT_DATE - (INTERVAL '1 year' * :analysis_years)
+                    AND {region_filter}
+                GROUP BY 
+                    h.region, br.blood_type, season, year
+            ),
+            seasonal_aggregates AS (
+                -- Агрегуємо по сезонах за всі роки
+                SELECT 
+                    region,
+                    blood_type,
+                    season,
+                    SUM(request_count) AS total_requests,
+                    AVG(request_count) AS avg_requests_per_year,
+                    SUM(urgent_count) AS total_urgent,
+                    SUM(fulfilled_count) AS total_fulfilled,
+                    -- Відсоток термінових запитів
+                    ROUND((SUM(urgent_count) * 100.0 / NULLIF(SUM(request_count), 0)), 1) AS urgent_percent,
+                    -- Відсоток виконаних запитів
+                    ROUND((SUM(fulfilled_count) * 100.0 / NULLIF(SUM(request_count), 0)), 1) AS fulfillment_rate
+                FROM 
+                    blood_requests_by_season
+                GROUP BY 
+                    region, blood_type, season
+                HAVING 
+                    SUM(request_count) >= :min_request_count
+            ),
+            region_blood_types AS (
+                -- Унікальні комбінації регіон-група крові
+                SELECT DISTINCT 
+                    region, 
+                    blood_type 
+                FROM 
+                    seasonal_aggregates
+            ),
+            region_blood_type_seasons AS (
+                -- Для кожної комбінації регіон-група крові обчислюємо сезонні патерни
+                SELECT 
+                    rbt.region,
+                    rbt.blood_type,
+                    -- Сезон з найбільшою кількістю запитів
+                    (
+                        SELECT season
+                        FROM seasonal_aggregates sa
+                        WHERE sa.region = rbt.region AND sa.blood_type = rbt.blood_type
+                        ORDER BY sa.total_requests DESC
+                        LIMIT 1
+                    ) AS peak_season,
+                    -- Сезон з найменшою кількістю запитів
+                    (
+                        SELECT season
+                        FROM seasonal_aggregates sa
+                        WHERE sa.region = rbt.region AND sa.blood_type = rbt.blood_type
+                        ORDER BY sa.total_requests ASC
+                        LIMIT 1
+                    ) AS low_season,
+                    -- Максимальна кількість запитів за сезон
+                    (
+                        SELECT MAX(total_requests)
+                        FROM seasonal_aggregates sa
+                        WHERE sa.region = rbt.region AND sa.blood_type = rbt.blood_type
+                    ) AS max_requests,
+                    -- Мінімальна кількість запитів за сезон
+                    (
+                        SELECT MIN(total_requests)
+                        FROM seasonal_aggregates sa
+                        WHERE sa.region = rbt.region AND sa.blood_type = rbt.blood_type
+                    ) AS min_requests,
+                    -- Різниця між максимумом і мінімумом (сезонна волатильність)
+                    (
+                        SELECT (MAX(total_requests) - MIN(total_requests)) * 100.0 / NULLIF(AVG(total_requests), 0)
+                        FROM seasonal_aggregates sa
+                        WHERE sa.region = rbt.region AND sa.blood_type = rbt.blood_type
+                    ) AS seasonal_volatility,
+                    -- Загальна кількість запитів для цієї групи крові в регіоні
+                    (
+                        SELECT SUM(total_requests)
+                        FROM seasonal_aggregates sa
+                        WHERE sa.region = rbt.region AND sa.blood_type = rbt.blood_type
+                    ) AS total_region_requests,
+                    -- JSON-дані по сезонах для візуалізації
+                    (
+                        SELECT json_agg(json_build_object(
+                            'season', sa.season, 
+                            'requests', sa.total_requests,
+                            'urgent_percent', sa.urgent_percent,
+                            'fulfillment_rate', sa.fulfillment_rate
+                        ))
+                        FROM seasonal_aggregates sa
+                        WHERE sa.region = rbt.region AND sa.blood_type = rbt.blood_type
+                    ) AS seasonal_data
+                FROM 
+                    region_blood_types rbt
+            ),
+            -- Для кожної групи крові знаходимо спільні сезонні патерни між регіонами
+            blood_type_region_pairs AS (
+                SELECT 
+                    a.blood_type,
+                    a.region AS region1,
+                    b.region AS region2,
+                    -- Схожість сезонних патернів (спільний пік)
+                    a.peak_season = b.peak_season AS same_peak_season,
+                    -- Схожість сезонних патернів (спільний мінімум)
+                    a.low_season = b.low_season AS same_low_season,
+                    -- Метрика схожості сезонних патернів
+                    CASE 
+                        WHEN a.peak_season = b.peak_season AND a.low_season = b.low_season THEN 'Повна'
+                        WHEN a.peak_season = b.peak_season THEN 'Спільний максимум'
+                        WHEN a.low_season = b.low_season THEN 'Спільний мінімум'
+                        ELSE 'Різні'
+                    END AS pattern_similarity,
+                    -- Різниця у волатильності
+                    ABS(a.seasonal_volatility - b.seasonal_volatility) AS volatility_diff
+                FROM 
+                    region_blood_type_seasons a
+                JOIN 
+                    region_blood_type_seasons b 
+                    ON a.blood_type = b.blood_type AND a.region < b.region
+            )
+            -- Фінальний результат
+            SELECT 
+                rbts.blood_type,
+                rbts.region,
+                rbts.peak_season,
+                rbts.low_season,
+                rbts.max_requests,
+                rbts.min_requests,
+                ROUND(rbts.seasonal_volatility, 2) AS seasonal_volatility,
+                rbts.total_region_requests,
+                -- Схожі регіони за патернами для цієї групи крові
+                (
+                    SELECT STRING_AGG(
+                        CASE 
+                            WHEN btrp.region1 = rbts.region THEN btrp.region2
+                            ELSE btrp.region1
+                        END || ' (' || btrp.pattern_similarity || ')', 
+                        ', '
+                    )
+                    FROM blood_type_region_pairs btrp
+                    WHERE 
+                        (btrp.region1 = rbts.region OR btrp.region2 = rbts.region)
+                        AND (btrp.same_peak_season OR btrp.same_low_season)
+                ) AS similar_regions,
+                -- Визначення категорії сезонності
+                CASE 
+                    WHEN rbts.seasonal_volatility > 50 THEN 'Висока сезонність'
+                    WHEN rbts.seasonal_volatility > 25 THEN 'Середня сезонність'
+                    ELSE 'Низька сезонність'
+                END AS seasonality_category,
+                -- JSON-дані по сезонах
+                rbts.seasonal_data
+            FROM 
+                region_blood_type_seasons rbts
+            ORDER BY 
+                rbts.seasonal_volatility DESC,
+                rbts.total_region_requests DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "min_request_count": min_request_count,
+                    "analysis_years": analysis_years,
+                    "limit": limit
+                }
+            )
+            
+            return [dict(row) for row in result.mappings()]

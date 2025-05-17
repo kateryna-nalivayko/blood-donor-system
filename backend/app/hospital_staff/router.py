@@ -184,3 +184,26 @@ async def find_donors_matching_multiple_requests(
         blood_type=blood_type,
         limit=limit
     )
+
+@router.get("/analytics/seasonal-blood-patterns",
+    summary="Analyze seasonal patterns in blood type requests",
+    response_model=List[Dict[str, Any]])
+async def find_seasonal_blood_request_patterns(
+    min_request_count: int = Query(10, description="Minimum request count for inclusion"),
+    analysis_years: int = Query(2, description="Number of years to analyze"),
+    region: Optional[str] = Query(None, description="Filter by specific region"),
+    limit: int = Query(50, description="Maximum number of results"),
+    current_staff = Depends(get_current_hospital_staff)
+) -> List[Dict[str, Any]]:
+    """
+    Analyze seasonal trends and patterns in blood type requests across regions.
+    
+    This endpoint helps identify which blood types are more in demand during 
+    specific seasons, allowing for better planning of blood donation campaigns.
+    """
+    return await HospitalStaffDAO.find_seasonal_blood_request_patterns(
+        min_request_count=min_request_count,
+        analysis_years=analysis_years,
+        region=region,
+        limit=limit
+    )

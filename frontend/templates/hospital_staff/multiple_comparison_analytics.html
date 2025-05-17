@@ -47,6 +47,12 @@
                     <span>Донори для множинних запитів</span>
                 </a>
             </li>
+                    <li data-target="tab-seasonal-patterns">
+            <a>
+                <span class="icon"><i class="fas fa-calendar-alt"></i></span>
+                <span>Сезонні патерни</span>
+            </a>
+        </li>
         </ul>
     </div>
 
@@ -294,6 +300,83 @@
                     <p>Виконується складний аналіз даних...</p>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-seasonal-patterns" class="tab-pane">
+    <div class="box">
+        <h2 class="title is-4">Сезонні патерни запитів на кров</h2>
+        <p class="subtitle">Аналізує сезонні тренди в запитах на кров різних типів та порівнює їх між регіонами.</p>
+        
+        <form id="form-seasonal-patterns" class="mb-5">
+            <div class="columns is-multiline">
+                <div class="column is-6">
+                    <div class="field">
+                        <label class="label">Мінімальна кількість запитів</label>
+                        <div class="control">
+                            <input class="input" type="number" name="min_request_count" min="1" value="10" required>
+                        </div>
+                        <p class="help">Мінімальна кількість запитів для включення групи крові в аналіз</p>
+                    </div>
+                </div>
+                
+                <div class="column is-6">
+                    <div class="field">
+                        <label class="label">Років для аналізу</label>
+                        <div class="control">
+                            <input class="input" type="number" name="analysis_years" min="1" max="5" value="2" required>
+                        </div>
+                        <p class="help">Кількість років для аналізу історичних даних</p>
+                    </div>
+                </div>
+                
+                <div class="column is-6">
+                    <div class="field">
+                        <label class="label">Регіон (необов'язково)</label>
+                        <div class="control">
+                            <div class="select is-fullwidth">
+                                <select name="region">
+                                    <option value="">-- Всі регіони --</option>
+                                    {% for r in regions %}
+                                    <option value="{{ r }}">{{ r }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <p class="help">Обмежити аналіз одним регіоном</p>
+                    </div>
+                </div>
+                
+                <div class="column is-6">
+                    <div class="field">
+                        <label class="label">Кількість результатів</label>
+                        <div class="control">
+                            <input class="input" type="number" name="limit" min="1" max="100" value="50" required>
+                        </div>
+                        <p class="help">Максимальна кількість результатів</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="field">
+                <div class="control">
+                    <button type="submit" class="button is-primary is-fullwidth">
+                        <span class="icon"><i class="fas fa-search"></i></span>
+                        <span>Виконати аналіз</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+        
+        <div id="seasonal-patterns-results" class="results-container" style="display: none;">
+            <h3 class="title is-5">Результати аналізу</h3>
+            <div class="results-content"></div>
+        </div>
+        
+        <div id="seasonal-patterns-loading" class="has-text-centered is-hidden">
+            <div class="loading-spinner mb-3"></div>
+            <p>Виконується складний аналіз сезонних даних...</p>
         </div>
     </div>
 </div>
@@ -731,6 +814,246 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error:', error);
             });
     });
+
+document.getElementById('form-seasonal-patterns').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const resultsContainer = document.getElementById('seasonal-patterns-results');
+    const resultsContent = resultsContainer.querySelector('.results-content');
+    const loadingIndicator = document.getElementById('seasonal-patterns-loading');
+    
+    // Show loading
+    loadingIndicator.classList.remove('is-hidden');
+    resultsContainer.style.display = 'none';
+    
+    // Create URL params
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+    for (let [key, value] of formData.entries()) {
+        if (value) params.append(key, value);
+    }
+    
+    // Make API request
+    fetch(`/hospital-staff/analytics/seasonal-blood-patterns?${params.toString()}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Помилка мережі або сервера');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Hide loading
+            loadingIndicator.classList.add('is-hidden');
+            resultsContainer.style.display = 'block';
+            
+            // Display results
+            if (!data || data.length === 0) {
+                resultsContent.innerHTML = '<div class="notification is-warning">Не знайдено сезонних патернів, що відповідають критеріям.</div>';
+                return;
+            }
+            
+            // Group by blood type for chart creation
+            const bloodTypeGroups = {};
+            data.forEach(item => {
+                if (!bloodTypeGroups[item.blood_type]) {
+                    bloodTypeGroups[item.blood_type] = [];
+                }
+                bloodTypeGroups[item.blood_type].push(item);
+            });
+            
+            // Create result HTML
+            let html = '';
+            
+            // Add summary table
+            html += `
+            <div class="table-container results-table mb-5">
+                <table class="table is-fullwidth is-striped is-hoverable">
+                    <thead>
+                        <tr>
+                            <th>Група крові</th>
+                            <th>Регіон</th>
+                            <th>Пік сезону</th>
+                            <th>Мінімум сезону</th>
+                            <th>Волатильність</th>
+                            <th>Всього запитів</th>
+                            <th>Схожі регіони</th>
+                            <th>Категорія сезонності</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.forEach(item => {
+                const volatilityClass = 
+                    item.seasonal_volatility > 50 ? 'is-danger' : 
+                    item.seasonal_volatility > 25 ? 'is-warning' : 
+                    'is-success';
+                
+                html += `
+                    <tr>
+                        <td>
+                            <span class="tag is-primary is-light has-text-weight-bold">${item.blood_type}</span>
+                        </td>
+                        <td>${item.region}</td>
+                        <td>
+                            <span class="tag is-info">${item.peak_season}</span>
+                            <span class="tag is-info is-light">${item.max_requests}</span>
+                        </td>
+                        <td>
+                            <span class="tag is-warning">${item.low_season}</span>
+                            <span class="tag is-warning is-light">${item.min_requests}</span>
+                        </td>
+                        <td>
+                            <span class="tag ${volatilityClass}">${item.seasonal_volatility}%</span>
+                        </td>
+                        <td>${item.total_region_requests}</td>
+                        <td>
+                            <small>${item.similar_regions || 'Немає схожих регіонів'}</small>
+                        </td>
+                        <td>
+                            <span class="tag ${
+                                item.seasonality_category === 'Висока сезонність' ? 'is-danger' : 
+                                item.seasonality_category === 'Середня сезонність' ? 'is-warning' : 
+                                'is-success'
+                            }">${item.seasonality_category}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            </div>
+            `;
+            
+            // Create charts for each blood type
+            html += '<div class="columns is-multiline mb-5">';
+            
+            Object.keys(bloodTypeGroups).forEach(bloodType => {
+                if (bloodTypeGroups[bloodType].length > 0) {
+                    html += `
+                    <div class="column is-6">
+                        <div class="box">
+                            <h4 class="title is-5">Сезонність групи крові ${bloodType}</h4>
+                            <div id="chart-blood-type-${bloodType.replace('+', 'plus').replace('-', 'minus')}" style="height: 250px;"></div>
+                        </div>
+                    </div>
+                    `;
+                }
+            });
+            
+            html += '</div>';
+            
+            // Add explanation
+            html += `
+            <div class="notification is-info is-light mt-3">
+                <p>Аналіз виявив <strong>${data.length}</strong> сезонних патернів запитів на кров.</p>
+                <p class="is-size-7 mt-2">
+                    <strong>Пояснення термінів:</strong>
+                </p>
+                <ul class="is-size-7">
+                    <li><strong>Волатильність</strong> - різниця між максимальною і мінімальною кількістю запитів у відсотках. Висока волатильність означає сильну сезонність.</li>
+                    <li><strong>Схожі регіони</strong> - регіони з подібними сезонними патернами для даної групи крові.</li>
+                    <li><strong>Категорія сезонності</strong> - класифікація на основі волатильності: висока (>50%), середня (25-50%), низька (<25%).</li>
+                </ul>
+            </div>
+            `;
+            
+            resultsContent.innerHTML = html;
+            
+            // Initialize charts after DOM update
+            setTimeout(() => {
+                Object.keys(bloodTypeGroups).forEach(bloodType => {
+                    if (bloodTypeGroups[bloodType].length > 0) {
+                        // Initialize chart for this blood type
+                        const chartElement = document.getElementById(`chart-blood-type-${bloodType.replace('+', 'plus').replace('-', 'minus')}`);
+                        if (chartElement) {
+                            renderSeasonalChart(chartElement, bloodType, bloodTypeGroups[bloodType]);
+                        }
+                    }
+                });
+            }, 100);
+        })
+        .catch(error => {
+            // Hide loading, show error
+            loadingIndicator.classList.add('is-hidden');
+            resultsContainer.style.display = 'block';
+            resultsContent.innerHTML = `<div class="notification is-danger">Помилка: ${error.message}</div>`;
+            console.error('Error:', error);
+        });
+});
+
+// Helper function to render a seasonal chart
+function renderSeasonalChart(element, bloodType, data) {
+    // Prepare data for chart
+    const regions = [...new Set(data.map(item => item.region))];
+    const seasons = ['Зима', 'Весна', 'Літо', 'Осінь'];
+    
+    const chartData = regions.map(region => {
+        const regionData = data.find(item => item.region === region);
+        
+        if (!regionData || !regionData.seasonal_data) {
+            return { name: region, data: [0, 0, 0, 0] };
+        }
+        
+        // Map season data to consistent order
+        const seasonData = {};
+        regionData.seasonal_data.forEach(sd => {
+            seasonData[sd.season] = sd.requests;
+        });
+        
+        return {
+            name: region,
+            data: seasons.map(s => seasonData[s] || 0)
+        };
+    });
+    
+    // Simple chart using DOM
+    let chartHtml = `<div class="chart-container">`;
+    
+    // Create a simple legend
+    chartHtml += `<div class="chart-legend mb-2">`;
+    regions.forEach((region, i) => {
+        const colors = ['#3298dc', '#00d1b2', '#ff3860', '#ffdd57', '#7957d5'];
+        const color = colors[i % colors.length];
+        chartHtml += `<span class="tag" style="background-color: ${color}; margin-right: 8px;">${region}</span>`;
+    });
+    chartHtml += `</div>`;
+    
+    // Create a simple bar chart
+    chartHtml += `<div class="columns is-mobile mb-1">`;
+    seasons.forEach(season => {
+        chartHtml += `<div class="column has-text-centered">${season}</div>`;
+    });
+    chartHtml += `</div>`;
+    
+    // For each region, create a row of bars
+    regions.forEach((region, i) => {
+        const colors = ['#3298dc', '#00d1b2', '#ff3860', '#ffdd57', '#7957d5'];
+        const color = colors[i % colors.length];
+        const regionData = chartData.find(d => d.name === region);
+        const maxValue = Math.max(...regionData.data, 1);
+        
+        chartHtml += `<div class="columns is-mobile mb-3">`;
+        regionData.data.forEach(value => {
+            const heightPercent = (value / maxValue) * 100;
+            chartHtml += `
+            <div class="column">
+                <div style="height: 100px; position: relative;">
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background-color: ${color}; height: ${heightPercent}%; min-height: 1px;"></div>
+                </div>
+                <div class="has-text-centered is-size-7">${value}</div>
+            </div>
+            `;
+        });
+        chartHtml += `</div>`;
+    });
+    
+    chartHtml += `</div>`;
+    element.innerHTML = chartHtml;
+}
 });
 </script>
 {% endblock %}
