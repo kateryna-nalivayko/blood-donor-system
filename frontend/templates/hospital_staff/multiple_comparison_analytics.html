@@ -1,0 +1,736 @@
+{% extends "base.html" %}
+
+{% block title %}Аналітика з множинними порівняннями{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="box">
+    <div class="level">
+      <div class="level-left">
+        <div class="level-item">
+          <a href="/pages/hospital_staff/dashboard" class="button is-outlined is-danger">
+            <span class="icon">
+              <i class="fas fa-arrow-left"></i>
+            </span>
+            <span>Повернутись до меню</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+<div class="container">
+    <h1 class="title is-2 has-text-centered my-5">Аналітика з множинними порівняннями</h1>
+    
+    <div class="notification is-info is-light">
+        <p class="has-text-weight-bold">Ця сторінка містить складні аналітичні запити, які використовують технології множинних порівнянь.</p>
+        <p>За допомогою цих запитів можна виявити закономірності та зв'язки в системі донорства крові, які не видно через прості фільтри.</p>
+    </div>
+
+    <!-- Tabs for different queries -->
+    <div class="tabs is-boxed is-centered is-medium">
+        <ul>
+            <li class="is-active" data-target="tab-doctor-supersets">
+                <a>
+                    <span class="icon"><i class="fas fa-user-md"></i></span>
+                    <span>Надмножини донорів</span>
+                </a>
+            </li>
+            <li data-target="tab-hospital-patterns">
+                <a>
+                    <span class="icon"><i class="fas fa-hospital"></i></span>
+                    <span>Схожі патерни лікарень</span>
+                </a>
+            </li>
+            <li data-target="tab-multi-donors">
+                <a>
+                    <span class="icon"><i class="fas fa-users"></i></span>
+                    <span>Донори для множинних запитів</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab content containers -->
+    <div class="tab-content">
+        <!-- 1. Doctors with Donor Supersets Tab -->
+        <div id="tab-doctor-supersets" class="tab-pane is-active">
+            <div class="box">
+                <h2 class="title is-4">Лікарі з надмножинами донорів</h2>
+                <p class="subtitle">Знаходить пари лікарів, де множина донорів першого значною мірою перекривається з множиною донорів другого.</p>
+                
+                <form id="form-doctor-supersets" class="mb-5">
+                    <div class="columns is-multiline">
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Мінімальна кількість донорів</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="min_donor_count" min="1" value="2" required>
+                                </div>
+                                <p class="help">Мінімальна кількість донорів для включення в аналіз</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Мінімальний % спільних донорів</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="min_similarity_percent" min="1" max="100" value="50" required>
+                                </div>
+                                <p class="help">Мінімальний відсоток спільних донорів у парі лікарів</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Лікарня (необов'язково)</label>
+                                <div class="control">
+                                    <div class="select is-fullwidth">
+                                        <select name="specific_hospital_id">
+                                            <option value="">-- Всі лікарні --</option>
+                                            {% for hospital in all_hospitals %}
+                                            <option value="{{ hospital.id }}">{{ hospital.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <p class="help">Обмежити аналіз однією лікарнею</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Кількість результатів</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="limit" min="1" max="100" value="50" required>
+                                </div>
+                                <p class="help">Максимальна кількість результатів</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <div class="control">
+                            <button type="submit" class="button is-primary is-fullwidth">
+                                <span class="icon"><i class="fas fa-search"></i></span>
+                                <span>Виконати аналіз</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="doctor-supersets-results" class="results-container" style="display: none;">
+                    <h3 class="title is-5">Результати аналізу</h3>
+                    <div class="results-content"></div>
+                </div>
+                
+                <div id="doctor-supersets-loading" class="has-text-centered is-hidden">
+                    <div class="loading-spinner mb-3"></div>
+                    <p>Виконується складний аналіз даних...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 2. Hospitals with Similar Blood Patterns Tab -->
+        <div id="tab-hospital-patterns" class="tab-pane">
+            <div class="box">
+                <h2 class="title is-4">Лікарні зі схожими патернами запитів</h2>
+                <p class="subtitle">Знаходить пари лікарень з високим рівнем схожості патернів запитів на групи крові.</p>
+                
+                <form id="form-hospital-patterns" class="mb-5">
+                    <div class="columns is-multiline">
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Мінімальний відсоток схожості</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="min_similarity_percent" min="1" max="100" value="50" required>
+                                </div>
+                                <p class="help">Мінімальний рівень схожості між патернами (1-100%)</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Мінімальна кількість запитів</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="min_request_count" min="1" value="3" required>
+                                </div>
+                                <p class="help">Мінімальна кількість запитів на кров для включення в аналіз</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Період аналізу (місяці)</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="time_period_months" min="1" value="24" required>
+                                </div>
+                                <p class="help">Кількість місяців для аналізу історії запитів</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Кількість результатів</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="limit" min="1" max="100" value="50" required>
+                                </div>
+                                <p class="help">Максимальна кількість результатів</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <div class="control">
+                            <button type="submit" class="button is-primary is-fullwidth">
+                                <span class="icon"><i class="fas fa-search"></i></span>
+                                <span>Виконати аналіз</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="hospital-patterns-results" class="results-container" style="display: none;">
+                    <h3 class="title is-5">Результати аналізу</h3>
+                    <div class="results-content"></div>
+                </div>
+                
+                <div id="hospital-patterns-loading" class="has-text-centered is-hidden">
+                    <div class="loading-spinner mb-3"></div>
+                    <p>Виконується складний аналіз даних...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 3. Donors for Multiple Requests Tab -->
+        <div id="tab-multi-donors" class="tab-pane">
+            <div class="box">
+                <h2 class="title is-4">Донори для множинних запитів</h2>
+                <p class="subtitle">Знаходить донорів, які можуть задовольнити найбільшу кількість поточних запитів на кров.</p>
+                
+                <form id="form-multi-donors" class="mb-5">
+                    <div class="columns is-multiline">
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Мінімальна кількість збігів</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="min_match_count" min="1" value="2" required>
+                                </div>
+                                <p class="help">Мінімальна кількість запитів, які може задовольнити донор</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Максимальна відстань (км)</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="max_distance_km" min="0" value="50" required>
+                                </div>
+                                <p class="help">Максимальна відстань між донором і лікарнею</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Регіон (необов'язково)</label>
+                                <div class="control">
+                                    <div class="select is-fullwidth">
+                                        <select name="region">
+                                            <option value="">-- Всі регіони --</option>
+                                            {% for region in regions %}
+                                            <option value="{{ region }}">{{ region }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <p class="help">Обмежити аналіз одним регіоном</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Група крові (необов'язково)</label>
+                                <div class="control">
+                                    <div class="select is-fullwidth">
+                                        <select name="blood_type">
+                                            <option value="">-- Всі групи крові --</option>
+                                            {% for blood_type in blood_types %}
+                                            <option value="{{ blood_type.name }}">{{ blood_type.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <p class="help">Обмежити аналіз однією групою крові</p>
+                            </div>
+                        </div>
+                        
+                        <div class="column is-6">
+                            <div class="field">
+                                <label class="label">Кількість результатів</label>
+                                <div class="control">
+                                    <input class="input" type="number" name="limit" min="1" max="100" value="50" required>
+                                </div>
+                                <p class="help">Максимальна кількість результатів</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <div class="control">
+                            <button type="submit" class="button is-primary is-fullwidth">
+                                <span class="icon"><i class="fas fa-search"></i></span>
+                                <span>Виконати аналіз</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="multi-donors-results" class="results-container" style="display: none;">
+                    <h3 class="title is-5">Результати аналізу</h3>
+                    <div class="results-content"></div>
+                </div>
+                
+                <div id="multi-donors-loading" class="has-text-centered is-hidden">
+                    <div class="loading-spinner mb-3"></div>
+                    <p>Виконується складний аналіз даних...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tab-pane {
+        display: none;
+    }
+    
+    .tab-pane.is-active {
+        display: block;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        margin: 0 auto;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3273dc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .results-table {
+        width: 100%;
+        overflow-x: auto;
+    }
+    
+    .tag.is-similarity-high {
+        background-color: #48c774;
+        color: white;
+    }
+    
+    .tag.is-similarity-medium {
+        background-color: #3298dc;
+        color: white;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching
+    const tabs = document.querySelectorAll('.tabs li');
+    const tabContents = document.querySelectorAll('.tab-pane');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Deactivate all tabs
+            tabs.forEach(t => t.classList.remove('is-active'));
+            tabContents.forEach(content => content.classList.remove('is-active'));
+            
+            // Activate selected tab
+            tab.classList.add('is-active');
+            const target = tab.dataset.target;
+            document.getElementById(target).classList.add('is-active');
+        });
+    });
+    
+    // Form submissions
+    
+    // 1. Doctors with Donor Supersets
+    document.getElementById('form-doctor-supersets').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const resultsContainer = document.getElementById('doctor-supersets-results');
+        const resultsContent = resultsContainer.querySelector('.results-content');
+        const loadingIndicator = document.getElementById('doctor-supersets-loading');
+        
+        // Show loading
+        loadingIndicator.classList.remove('is-hidden');
+        resultsContainer.style.display = 'none';
+        
+        // Create URL params
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        for (let [key, value] of formData.entries()) {
+            if (value) params.append(key, value);
+        }
+        
+        // Make API request
+        fetch(`/hospital-staff/analytics/doctor-donor-supersets?${params.toString()}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Помилка мережі або сервера');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading
+                loadingIndicator.classList.add('is-hidden');
+                resultsContainer.style.display = 'block';
+                
+                // Display results
+                if (!data || data.length === 0) {
+                    resultsContent.innerHTML = '<div class="notification is-warning">Не знайдено пар лікарів, що відповідають критеріям.</div>';
+                    return;
+                }
+                
+                // Create results table
+                let html = `
+                <div class="table-container results-table">
+                    <table class="table is-fullwidth is-striped is-hoverable">
+                        <thead>
+                            <tr>
+                                <th>Перший лікар</th>
+                                <th>Лікарня</th>
+                                <th>К-сть донорів</th>
+                                <th>Другий лікар</th>
+                                <th>Лікарня</th>
+                                <th>К-сть донорів</th>
+                                <th>Спільні донори (%)</th>
+                                <th>Спільні донори</th>
+                                <th>Одна лікарня</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.forEach(pair => {
+                    const similarityClass = 
+                        pair.common_percent >= 90 ? 'is-success' : 
+                        pair.common_percent >= 75 ? 'is-primary' : 
+                        'is-info';
+                        
+                    html += `
+                        <tr>
+                            <td>
+                                <span class="has-text-weight-bold">${pair.doctor1_first_name} ${pair.doctor1_last_name}</span>
+                            </td>
+                            <td>${pair.doctor1_hospital || '-'}</td>
+                            <td><span class="tag is-info">${pair.doctor1_donor_count}</span></td>
+                            <td>
+                                <span class="has-text-weight-bold">${pair.doctor2_first_name} ${pair.doctor2_last_name}</span>
+                            </td>
+                            <td>${pair.doctor2_hospital || '-'}</td>
+                            <td><span class="tag is-info">${pair.doctor2_donor_count}</span></td>
+                            <td>
+                                <span class="tag ${similarityClass}">${pair.common_percent}%</span>
+                            </td>
+                            <td>
+                                <div class="content is-small">
+                                    <details>
+                                        <summary>${pair.common_donor_count} донорів</summary>
+                                        <p>${pair.common_donor_names || 'Немає спільних донорів'}</p>
+                                    </details>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="tag ${pair.same_hospital === 'Так' ? 'is-success' : 'is-warning'}">
+                                    ${pair.same_hospital || 'Ні'}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="notification is-info is-light mt-3">
+                    <p>Знайдено <strong>${data.length}</strong> пар лікарів зі спільними донорами.</p>
+                    <p class="is-size-7 mt-2">
+                        <strong>Примітка:</strong> Відсоток показує скільки спільних донорів відносно загальної кількості донорів другого лікаря.
+                    </p>
+                </div>
+                `;
+                
+                resultsContent.innerHTML = html;
+            })
+            .catch(error => {
+                // Hide loading, show error
+                loadingIndicator.classList.add('is-hidden');
+                resultsContainer.style.display = 'block';
+                resultsContent.innerHTML = `<div class="notification is-danger">Помилка: ${error.message}</div>`;
+                console.error('Error:', error);
+            });
+    });
+    
+    // 2. Hospitals with Similar Blood Patterns
+    document.getElementById('form-hospital-patterns').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const resultsContainer = document.getElementById('hospital-patterns-results');
+        const resultsContent = resultsContainer.querySelector('.results-content');
+        const loadingIndicator = document.getElementById('hospital-patterns-loading');
+        
+        // Show loading
+        loadingIndicator.classList.remove('is-hidden');
+        resultsContainer.style.display = 'none';
+        
+        // Create URL params
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        for (let [key, value] of formData.entries()) {
+            if (value) params.append(key, value);
+        }
+        
+        // Make API request
+        fetch(`/hospital-staff/analytics/hospital-blood-patterns?${params.toString()}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Помилка мережі або сервера');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading
+                loadingIndicator.classList.add('is-hidden');
+                resultsContainer.style.display = 'block';
+                
+                // Display results
+                if (!data || data.length === 0) {
+                    resultsContent.innerHTML = '<div class="notification is-warning">Не знайдено пар лікарень з подібними патернами.</div>';
+                    return;
+                }
+                
+                // Create results table
+                let html = `
+                <div class="table-container results-table">
+                    <table class="table is-fullwidth is-striped is-hoverable">
+                        <thead>
+                            <tr>
+                                <th>Перша лікарня</th>
+                                <th>Розташування</th>
+                                <th>Друга лікарня</th>
+                                <th>Розташування</th>
+                                <th>Схожість (%)</th>
+                                <th>Спільні групи</th>
+                                <th>Унікальні для #1</th>
+                                <th>Унікальні для #2</th>
+                                <th>Географія</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.forEach(pair => {
+                    const similarityClass = 
+                        pair.similarity_percent >= 90 ? 'is-similarity-high' : 
+                        pair.similarity_percent >= 75 ? 'is-similarity-medium' : 
+                        'is-info';
+                    
+                    html += `
+                        <tr>
+                            <td>
+                                <span class="has-text-weight-bold">${pair.hospital1_name}</span>
+                            </td>
+                            <td>${pair.hospital1_city || '-'}, ${pair.hospital1_region || '-'}</td>
+                            <td>
+                                <span class="has-text-weight-bold">${pair.hospital2_name}</span>
+                            </td>
+                            <td>${pair.hospital2_city || '-'}, ${pair.hospital2_region || '-'}</td>
+                            <td>
+                                <span class="tag ${similarityClass}">
+                                    ${pair.similarity_percent}%
+                                </span>
+                            </td>
+                            <td>
+                                <div class="tags">
+                                    ${pair.common_blood_types.split(', ').map(bt => 
+                                        `<span class="tag is-success is-light">${bt}</span>`
+                                    ).join('')}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="tags">
+                                    ${pair.hospital1_unique_types ? pair.hospital1_unique_types.split(', ').map(bt => 
+                                        `<span class="tag is-info is-light">${bt}</span>`
+                                    ).join('') : '-'}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="tags">
+                                    ${pair.hospital2_unique_types ? pair.hospital2_unique_types.split(', ').map(bt => 
+                                        `<span class="tag is-info is-light">${bt}</span>`
+                                    ).join('') : '-'}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="tag ${pair.geographical_relation === 'Одне місто' ? 'is-success' : 'is-info'}">
+                                    ${pair.geographical_relation || '-'}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="notification is-info is-light mt-3">
+                    <p>Знайдено <strong>${data.length}</strong> пар лікарень з подібними патернами запитів.</p>
+                    <p class="is-size-7 mt-2">
+                        <strong>Рівні схожості:</strong> ≥90% - надзвичайно висока, ≥75% - дуже висока, ≥60% - висока, ≥50% - середня
+                    </p>
+                </div>
+                `;
+                
+                resultsContent.innerHTML = html;
+            })
+            .catch(error => {
+                // Hide loading, show error
+                loadingIndicator.classList.add('is-hidden');
+                resultsContainer.style.display = 'block';
+                resultsContent.innerHTML = `<div class="notification is-danger">Помилка: ${error.message}</div>`;
+                console.error('Error:', error);
+            });
+    });
+    
+    // 3. Donors for Multiple Requests
+    document.getElementById('form-multi-donors').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = this;
+        const resultsContainer = document.getElementById('multi-donors-results');
+        const resultsContent = resultsContainer.querySelector('.results-content');
+        const loadingIndicator = document.getElementById('multi-donors-loading');
+        
+        // Show loading
+        loadingIndicator.classList.remove('is-hidden');
+        resultsContainer.style.display = 'none';
+        
+        // Create URL params
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        for (let [key, value] of formData.entries()) {
+            if (value) params.append(key, value);
+        }
+        
+        // Make API request
+        fetch(`/hospital-staff/analytics/multi-request-donors?${params.toString()}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Помилка мережі або сервера');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading
+                loadingIndicator.classList.add('is-hidden');
+                resultsContainer.style.display = 'block';
+                
+                // Display results
+                if (!data || data.length === 0) {
+                    resultsContent.innerHTML = '<div class="notification is-warning">Не знайдено донорів, які відповідають критеріям.</div>';
+                    return;
+                }
+                
+                // Create results table
+                let html = `
+                <div class="table-container results-table">
+                    <table class="table is-fullwidth is-striped is-hoverable">
+                        <thead>
+                            <tr>
+                                <th>Донор</th>
+                                <th>Група крові</th>
+                                <th>Кількість збігів</th>
+                                <th>Ідеальних збігів</th>
+                                <th>Лікарні</th>
+                                <th>% ідеальних</th>
+                                <th>Останнє донорство</th>
+                                <th>Контакти</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.forEach(donor => {
+                    const perfectClass = 
+                        donor.perfect_match_percent >= 90 ? 'is-success' : 
+                        donor.perfect_match_percent >= 75 ? 'is-primary' : 
+                        'is-info';
+                        
+                    html += `
+                        <tr>
+                            <td>
+                                <span class="has-text-weight-bold">${donor.donor_name}</span>
+                                <br>
+                                <small>${donor.age} років</small>
+                            </td>
+                            <td><span class="tag is-info">${donor.donor_blood_type}</span></td>
+                            <td>${donor.match_count}</td>
+                            <td>${donor.perfect_matches}</td>
+                            <td>
+                                <div class="content is-small">
+                                    <details>
+                                        <summary>${donor.unique_hospitals} лікарень</summary>
+                                        <p>${donor.matched_hospitals || '-'}</p>
+                                    </details>
+                                </div>
+                            </td>
+                            <td><span class="tag ${perfectClass}">${donor.perfect_match_percent}%</span></td>
+                            <td>${donor.days_since_donation} днів тому</td>
+                            <td>
+                                <a href="tel:${donor.phone_number}" class="button is-small">
+                                    <span class="icon"><i class="fas fa-phone"></i></span>
+                                </a>
+                                <a href="mailto:${donor.email}" class="button is-small">
+                                    <span class="icon"><i class="fas fa-envelope"></i></span>
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="notification is-info is-light mt-3">
+                    <p>Знайдено <strong>${data.length}</strong> донорів, які можуть задовольнити численні запити.</p>
+                    <p class="is-size-7 mt-2">
+                        <strong>Примітка:</strong> "Ідеальний збіг" означає повний збіг групи крові донора з запитом.
+                    </p>
+                </div>
+                `;
+                
+                resultsContent.innerHTML = html;
+            })
+            .catch(error => {
+                // Hide loading, show error
+                loadingIndicator.classList.add('is-hidden');
+                resultsContainer.style.display = 'block';
+                resultsContent.innerHTML = `<div class="notification is-danger">Помилка: ${error.message}</div>`;
+                console.error('Error:', error);
+            });
+    });
+});
+</script>
+{% endblock %}
