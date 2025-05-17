@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Request, HTTPException, status
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, Query, Request, HTTPException, status
 from fastapi.responses import HTMLResponse
 from app.config import templates
 from app.users.dependencies import get_current_hospital_staff
@@ -314,4 +315,50 @@ async def hospital_staff_all_tables(request: Request):
     return templates.TemplateResponse(
         "hospital_staff/all_tables.html",
         {"request": request}
+    )
+
+
+@router.get(
+    "/multiple-comparison-analytics", 
+    response_class=HTMLResponse,
+    name="multiple_comparison_analytics",  
+    summary="Multiple Comparison Analytics Dashboard",
+    description="View analytics with multiple comparison queries for the blood donation system"
+)
+async def get_multiple_comparison_analytics_page(
+    request: Request,
+    current_user: User = Depends(get_current_hospital_staff)
+):
+    """
+    Render the multiple comparison analytics dashboard with complex queries
+    that compare multiple sets and relationships between entities.
+    """
+    # Отримуємо профіль персоналу лікарні
+    staff_profile = await HospitalStaffDAO.find_one_or_none(
+        user_id=current_user.id,
+    )
+    
+    if not staff_profile:
+        raise HTTPException(status_code=404, detail="Hospital staff profile not found")
+    
+    # Отримуємо інформацію про лікарню
+    hospital = await HospitalDAO.find_one_or_none(id=staff_profile.hospital_id)
+    
+    # Отримуємо дані для випадаючих списків
+    all_hospitals = await HospitalDAO.get_all_hospitals()
+    regions = await HospitalDAO.get_unique_regions()
+    blood_types = list(BloodType)
+    
+    return templates.TemplateResponse(
+        "hospital_staff/multiple_comparison_analytics.html",
+        {
+            "request": request,
+            "user": current_user,  # Змінено з "current_user" на "user"
+            "staff": staff_profile,  # Додано staff_profile
+            "hospital": hospital,    # Додано hospital
+            "all_hospitals": all_hospitals,
+            "regions": regions, 
+            "blood_types": blood_types,
+            "page_title": "Аналітика з множинними порівняннями"
+        }
     )

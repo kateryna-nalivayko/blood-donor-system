@@ -567,3 +567,193 @@ class DonorDAO(BaseDAO):
             )
             
             return [dict(row) for row in result.mappings()]
+        
+  
+    @classmethod
+    async def find_donors_matching_multiple_requests(
+        cls,
+        min_match_count: int = 2,
+        max_distance_km: float = 50.0,
+        region: Optional[str] = None,
+        blood_type: Optional[str] = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Find donors who can potentially fulfill multiple pending blood requests.
+        
+        This helps identify donors who can make a significant impact by addressing
+        multiple blood needs in their vicinity.
+        """
+        async with async_session_maker() as session:
+            # Створюємо динамічні умови для параметрів, які можуть бути None
+            blood_type_filter = "TRUE" if blood_type is None else f"d.blood_type = '{blood_type}'"
+            region_filter = "TRUE" if region is None else f"h.region = '{region}'"
+            
+            query = text(f"""
+            WITH eligible_donors AS (
+                -- Визначаємо донорів, які наразі є придатними
+                SELECT
+                    d.id AS donor_id,
+                    u.first_name AS donor_first_name,
+                    u.last_name AS donor_last_name,
+                    d.blood_type,
+                    u.phone_number,
+                    u.email,
+                    COALESCE(d.last_donation_date, '1900-01-01'::date) AS last_donation,
+                    CURRENT_DATE - COALESCE(d.last_donation_date, '1900-01-01'::date) AS days_since_donation,
+                    EXTRACT(YEAR FROM AGE(CURRENT_DATE, d.date_of_birth)) AS age,
+                    d.weight,
+                    d.height
+                FROM
+                    donors d
+                JOIN
+                    users u ON d.user_id = u.id
+                WHERE
+                    d.is_eligible = TRUE
+                    AND (d.ineligible_until IS NULL OR d.ineligible_until < CURRENT_DATE)
+                    AND {blood_type_filter}
+            ),
+            open_requests AS (
+                -- Знаходимо відкриті запити на кров
+                SELECT
+                    br.id AS request_id,
+                    br.blood_type,
+                    br.amount_needed_ml,
+                    br.urgency_level,
+                    br.request_date,
+                    br.hospital_id,
+                    h.name AS hospital_name,
+                    h.city AS hospital_city,
+                    h.region AS hospital_region
+                FROM
+                    blood_requests br
+                JOIN
+                    hospitals h ON br.hospital_id = h.id
+                WHERE
+                    br.status IN ('PENDING', 'APPROVED')
+                    AND {region_filter}
+            ),
+            compatible_matches AS (
+                -- Знаходимо сумісності між донорами та запитами
+                SELECT
+                    d.donor_id,
+                    d.donor_first_name,
+                    d.donor_last_name,
+                    d.blood_type AS donor_blood_type,
+                    d.phone_number,
+                    d.email,
+                    d.days_since_donation,
+                    d.age,
+                    r.request_id,
+                    r.blood_type AS request_blood_type,
+                    r.amount_needed_ml,
+                    r.urgency_level,
+                    r.hospital_name,
+                    r.hospital_city,
+                    r.hospital_region,
+                    -- Визначаємо сумісність груп крові
+                    CASE
+                        -- Універсальні донори O-негативної крові можуть здавати кров для будь-якої групи
+                        WHEN d.blood_type = 'O_NEGATIVE' THEN TRUE
+                        -- O-позитивна може бути передана для O+, A+, B+, AB+
+                        WHEN d.blood_type = 'O_POSITIVE' AND r.blood_type IN ('O_POSITIVE', 'A_POSITIVE', 'B_POSITIVE', 'AB_POSITIVE') THEN TRUE
+                        -- A-негативна може бути передана для A-, A+, AB-, AB+
+                        WHEN d.blood_type = 'A_NEGATIVE' AND r.blood_type IN ('A_NEGATIVE', 'A_POSITIVE', 'AB_NEGATIVE', 'AB_POSITIVE') THEN TRUE
+                        -- A-позитивна може бути передана для A+, AB+
+                        WHEN d.blood_type = 'A_POSITIVE' AND r.blood_type IN ('A_POSITIVE', 'AB_POSITIVE') THEN TRUE
+                        -- B-негативна може бути передана для B-, B+, AB-, AB+
+                        WHEN d.blood_type = 'B_NEGATIVE' AND r.blood_type IN ('B_NEGATIVE', 'B_POSITIVE', 'AB_NEGATIVE', 'AB_POSITIVE') THEN TRUE
+                        -- B-позитивна може бути передана для B+, AB+
+                        WHEN d.blood_type = 'B_POSITIVE' AND r.blood_type IN ('B_POSITIVE', 'AB_POSITIVE') THEN TRUE
+                        -- AB-негативна може бути передана для AB-, AB+
+                        WHEN d.blood_type = 'AB_NEGATIVE' AND r.blood_type IN ('AB_NEGATIVE', 'AB_POSITIVE') THEN TRUE
+                        -- AB-позитивна може бути передана тільки для AB+
+                        WHEN d.blood_type = 'AB_POSITIVE' AND r.blood_type = 'AB_POSITIVE' THEN TRUE
+                        ELSE FALSE
+                    END AS is_compatible,
+                    -- Визначаємо пріоритет відповідності (чим нижче значення, тим вищий пріоритет)
+                    CASE
+                        WHEN d.blood_type = r.blood_type THEN 1  -- Ідеальна відповідність
+                        WHEN d.blood_type = 'O_NEGATIVE' THEN 2  -- Універсальний донор
+                        ELSE 3  -- Сумісні, але не ідеальні
+                    END AS match_priority
+                FROM
+                    eligible_donors d
+                CROSS JOIN
+                    open_requests r
+                WHERE
+                    -- Умови сумісності
+                    CASE
+                        WHEN d.blood_type = 'O_NEGATIVE' THEN TRUE
+                        WHEN d.blood_type = 'O_POSITIVE' AND r.blood_type IN ('O_POSITIVE', 'A_POSITIVE', 'B_POSITIVE', 'AB_POSITIVE') THEN TRUE
+                        WHEN d.blood_type = 'A_NEGATIVE' AND r.blood_type IN ('A_NEGATIVE', 'A_POSITIVE', 'AB_NEGATIVE', 'AB_POSITIVE') THEN TRUE
+                        WHEN d.blood_type = 'A_POSITIVE' AND r.blood_type IN ('A_POSITIVE', 'AB_POSITIVE') THEN TRUE
+                        WHEN d.blood_type = 'B_NEGATIVE' AND r.blood_type IN ('B_NEGATIVE', 'B_POSITIVE', 'AB_NEGATIVE', 'AB_POSITIVE') THEN TRUE
+                        WHEN d.blood_type = 'B_POSITIVE' AND r.blood_type IN ('B_POSITIVE', 'AB_POSITIVE') THEN TRUE
+                        WHEN d.blood_type = 'AB_NEGATIVE' AND r.blood_type IN ('AB_NEGATIVE', 'AB_POSITIVE') THEN TRUE
+                        WHEN d.blood_type = 'AB_POSITIVE' AND r.blood_type = 'AB_POSITIVE' THEN TRUE
+                        ELSE FALSE
+                    END
+                    -- Додаткова умова, що донор не здавав кров щонайменше 56 днів
+                    AND d.days_since_donation >= 56
+                    -- Імітація обмеження відстані
+                    AND (random() * 100 <= :max_distance_km) 
+            ),
+            donor_match_counts AS (
+                -- Підрахунок кількості запитів, які може задовольнити кожен донор
+                SELECT
+                    donor_id,
+                    donor_first_name,
+                    donor_last_name,
+                    donor_blood_type,
+                    phone_number,
+                    email,
+                    days_since_donation,
+                    age,
+                    COUNT(DISTINCT request_id) AS match_count,
+                    COUNT(DISTINCT hospital_name) AS unique_hospitals,
+                    COUNT(DISTINCT CASE WHEN match_priority = 1 THEN request_id END) AS perfect_matches,
+                    STRING_AGG(DISTINCT hospital_name, ', ' ORDER BY hospital_name) AS matched_hospitals,
+                    STRING_AGG(DISTINCT request_blood_type::text, ', ' ORDER BY request_blood_type::text) AS matched_blood_types
+                FROM
+                    compatible_matches
+                GROUP BY
+                    donor_id, donor_first_name, donor_last_name, donor_blood_type, 
+                    phone_number, email, days_since_donation, age
+                HAVING
+                    COUNT(DISTINCT request_id) >= :min_match_count
+            )
+            -- Вибір кінцевого результату
+            SELECT
+                donor_id,
+                donor_first_name || ' ' || donor_last_name AS donor_name,
+                donor_blood_type,
+                phone_number,
+                email,
+                match_count,
+                perfect_matches,
+                unique_hospitals,
+                ROUND(perfect_matches::numeric * 100.0 / match_count, 1) AS perfect_match_percent,
+                matched_hospitals,
+                matched_blood_types,
+                days_since_donation,
+                age
+            FROM
+                donor_match_counts
+            ORDER BY
+                match_count DESC,
+                perfect_match_percent DESC,
+                days_since_donation DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "min_match_count": min_match_count,
+                    "max_distance_km": max_distance_km,
+                    "limit": limit
+                }
+            )
+            
+            return [dict(row) for row in result.mappings()]

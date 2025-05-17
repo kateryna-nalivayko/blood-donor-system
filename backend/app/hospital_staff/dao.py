@@ -367,3 +367,182 @@ class HospitalStaffDAO(BaseDAO):
             )
             
             return [dict(row) for row in result.mappings()]
+        
+
+    @classmethod
+    async def find_doctors_with_donor_supersets(
+        cls, 
+        min_donor_count: int = 2,  # Знижено з 3 до 2
+        min_similarity_percent: float = 50.0,  # Новий параметр - мінімальний % спільних донорів
+        specific_hospital_id: Optional[int] = None, 
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Знаходить пари лікарів, де множина донорів першого значною мірою перекривається 
+        з множиною донорів другого.
+        
+        Args:
+            min_donor_count: Мінімальна кількість донорів для включення лікаря
+            min_similarity_percent: Мінімальний відсоток спільних донорів
+            specific_hospital_id: ID конкретної лікарні (необов'язково)
+            limit: Максимальна кількість результатів
+        """
+        async with async_session_maker() as session:
+            # Формуємо умову для фільтрації по лікарні
+            hospital_filter = "TRUE" if specific_hospital_id is None else f"hs.hospital_id = {specific_hospital_id}"
+            
+            query = text(f"""
+            WITH doctor_donors AS (
+                -- Для кожного лікаря отримуємо унікальних донорів
+                SELECT DISTINCT
+                    hs.id AS doctor_id,
+                    u.last_name AS doctor_last_name,
+                    u.first_name AS doctor_first_name,
+                    h.id AS hospital_id,
+                    h.name AS hospital_name,
+                    d.donor_id,
+                    ud.last_name AS donor_last_name,
+                    ud.first_name AS donor_first_name
+                FROM 
+                    hospital_staff hs
+                JOIN 
+                    users u ON hs.user_id = u.id
+                JOIN 
+                    hospitals h ON hs.hospital_id = h.id
+                JOIN 
+                    blood_requests br ON hs.id = br.staff_id
+                JOIN 
+                    donations d ON br.id = d.blood_request_id
+                JOIN
+                    donors don ON d.donor_id = don.id
+                JOIN
+                    users ud ON don.user_id = ud.id
+                WHERE 
+                    hs.role = 'DOCTOR'
+                    AND d.status = 'COMPLETED'
+                    AND {hospital_filter}
+            ),
+            doctor_donor_sets AS (
+                -- Групуємо донорів за лікарем
+                SELECT 
+                    doctor_id,
+                    doctor_last_name,
+                    doctor_first_name,
+                    hospital_id,
+                    hospital_name,
+                    ARRAY_AGG(DISTINCT donor_id) AS donor_set,
+                    COUNT(DISTINCT donor_id) AS donor_count,
+                    STRING_AGG(DISTINCT donor_first_name || ' ' || donor_last_name, ', ' ORDER BY donor_first_name || ' ' || donor_last_name) AS donor_full_names
+                FROM 
+                    doctor_donors
+                GROUP BY 
+                    doctor_id, doctor_last_name, doctor_first_name, hospital_id, hospital_name
+                HAVING
+                    COUNT(DISTINCT donor_id) >= :min_donor_count
+            ),
+            doctor_pairs AS (
+                -- Формуємо пари і рахуємо метрики схожості
+                SELECT 
+                    d1.doctor_id AS doctor1_id,
+                    d1.doctor_first_name AS doctor1_first_name,
+                    d1.doctor_last_name AS doctor1_last_name,
+                    d1.hospital_name AS doctor1_hospital,
+                    d1.donor_count AS doctor1_donor_count,
+                    d1.donor_full_names AS doctor1_donors,
+                    
+                    d2.doctor_id AS doctor2_id,
+                    d2.doctor_first_name AS doctor2_first_name,
+                    d2.doctor_last_name AS doctor2_last_name,
+                    d2.hospital_name AS doctor2_hospital,
+                    d2.donor_count AS doctor2_donor_count,
+                    d2.donor_full_names AS doctor2_donors,
+                    
+                    -- Підрахунок перетину множин (спільні донори)
+                    (
+                        SELECT COUNT(*) 
+                        FROM (
+                            SELECT UNNEST(d1.donor_set) 
+                            INTERSECT 
+                            SELECT UNNEST(d2.donor_set)
+                        ) AS common
+                    ) AS common_donor_count,
+                    
+                    -- Підрахунок повного об'єднання множин донорів
+                    (
+                        SELECT COUNT(*) 
+                        FROM (
+                            SELECT UNNEST(d1.donor_set) 
+                            UNION 
+                            SELECT UNNEST(d2.donor_set)
+                        ) AS all_donors
+                    ) AS total_donor_count,
+                    
+                    d1.donor_count - d2.donor_count AS donor_count_diff,
+                    
+                    CASE 
+                        WHEN d1.hospital_id = d2.hospital_id THEN 'Так'
+                        ELSE 'Ні'
+                    END AS same_hospital
+                FROM 
+                    doctor_donor_sets d1
+                JOIN 
+                    doctor_donor_sets d2 ON d1.doctor_id < d2.doctor_id
+            )
+            SELECT 
+                *,
+                -- Відсоток спільних донорів відносно донорів другого лікаря
+                ROUND((common_donor_count * 100.0 / NULLIF(doctor2_donor_count, 0)), 1) AS common_percent,
+                
+                -- Список спільних донорів
+                (
+                    SELECT STRING_AGG(ud.first_name || ' ' || ud.last_name, ', ')
+                    FROM (
+                        SELECT UNNEST(d1.donor_set) AS donor_id
+                        FROM doctor_donor_sets d1
+                        WHERE d1.doctor_id = doctor1_id
+                        INTERSECT
+                        SELECT UNNEST(d2.donor_set) AS donor_id
+                        FROM doctor_donor_sets d2
+                        WHERE d2.doctor_id = doctor2_id
+                    ) AS common_ids
+                    JOIN donors d ON d.id = common_ids.donor_id
+                    JOIN users ud ON d.user_id = ud.id
+                ) AS common_donor_names,
+                
+                -- Донори унікальні для першого лікаря
+                (
+                    SELECT STRING_AGG(ud.first_name || ' ' || ud.last_name, ', ')
+                    FROM (
+                        SELECT UNNEST(d1.donor_set) AS donor_id
+                        FROM doctor_donor_sets d1
+                        WHERE d1.doctor_id = doctor1_id
+                        EXCEPT
+                        SELECT UNNEST(d2.donor_set) AS donor_id
+                        FROM doctor_donor_sets d2
+                        WHERE d2.doctor_id = doctor2_id
+                    ) AS unique_ids
+                    JOIN donors d ON d.id = unique_ids.donor_id
+                    JOIN users ud ON d.user_id = ud.id
+                ) AS unique_donor_names
+            FROM 
+                doctor_pairs
+            WHERE 
+                -- Основна умова: достатній відсоток спільних донорів
+                (common_donor_count * 100.0 / NULLIF(doctor2_donor_count, 0)) >= :min_similarity_percent
+            ORDER BY 
+                common_percent DESC,
+                common_donor_count DESC,
+                doctor1_donor_count DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "min_donor_count": min_donor_count,
+                    "min_similarity_percent": min_similarity_percent,
+                    "limit": limit
+                }
+            )
+            
+            return [dict(row) for row in result.mappings()]

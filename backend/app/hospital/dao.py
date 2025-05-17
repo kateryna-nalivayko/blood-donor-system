@@ -357,3 +357,182 @@ class HospitalDAO(BaseDAO):
             query = select(cls.model).limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
+        
+    @classmethod
+    async def get_unique_regions(cls) -> List[str]:
+        """
+        Get a list of all unique regions where hospitals are located.
+        
+        Returns:
+            List of unique region names sorted alphabetically
+        """
+        async with async_session_maker() as session:
+            query = select(cls.model.region).distinct().order_by(cls.model.region)
+            result = await session.execute(query)
+            regions = result.scalars().all()
+            
+            # Filter out None values
+            return [region for region in regions if region]
+        
+
+    @classmethod
+    async def find_hospitals_with_similar_blood_request_patterns(
+        cls, 
+        min_similarity_percent: float = 50.0,
+        min_request_count: int = 3,
+        time_period_months: int = 24,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Знаходить пари лікарень з подібними патернами запитів на групи крові.
+        """
+        async with async_session_maker() as session:
+            query = text(f"""
+            WITH blood_requests_by_hospital AS (
+                -- Запити на кров по кожній лікарні 
+                SELECT 
+                    h.id AS hospital_id,
+                    h.name AS hospital_name,
+                    h.city,
+                    h.region,
+                    br.blood_type,
+                    COUNT(*) AS request_count
+                FROM 
+                    hospitals h
+                JOIN 
+                    blood_requests br ON h.id = br.hospital_id
+                WHERE 
+                    br.created_at >= CURRENT_DATE - (:time_period_months * INTERVAL '1 month')
+                GROUP BY 
+                    h.id, h.name, h.city, h.region, br.blood_type
+            ),
+            hospital_blood_types AS (
+                -- Агрегація груп крові по лікарням
+                SELECT 
+                    hospital_id,
+                    hospital_name,
+                    city,
+                    region,
+                    ARRAY_AGG(blood_type ORDER BY blood_type) AS blood_types,
+                    STRING_AGG(blood_type::text, ', ' ORDER BY blood_type::text) AS blood_types_str,
+                    SUM(request_count) AS total_requests
+                FROM 
+                    blood_requests_by_hospital
+                GROUP BY 
+                    hospital_id, hospital_name, city, region
+                HAVING 
+                    SUM(request_count) >= :min_request_count
+            ),
+            hospital_pairs AS (
+                -- Формуємо всі можливі пари лікарень
+                SELECT 
+                    h1.hospital_id AS hospital1_id,
+                    h1.hospital_name AS hospital1_name,
+                    h1.city AS hospital1_city,
+                    h1.region AS hospital1_region,
+                    h1.blood_types AS hospital1_blood_types,
+                    h1.blood_types_str AS hospital1_blood_types_str,
+                    h1.total_requests AS hospital1_requests,
+                    
+                    h2.hospital_id AS hospital2_id,
+                    h2.hospital_name AS hospital2_name,
+                    h2.city AS hospital2_city,
+                    h2.region AS hospital2_region,
+                    h2.blood_types AS hospital2_blood_types,
+                    h2.blood_types_str AS hospital2_blood_types_str,
+                    h2.total_requests AS hospital2_requests,
+                    
+                    -- Спільні групи крові (перетин)
+                    (
+                        SELECT COUNT(*) FROM (
+                            SELECT UNNEST(h1.blood_types)
+                            INTERSECT
+                            SELECT UNNEST(h2.blood_types)
+                        ) AS common
+                    ) AS common_blood_types_count,
+                    
+                    -- Всі унікальні групи крові (об'єднання)
+                    (
+                        SELECT COUNT(*) FROM (
+                            SELECT UNNEST(h1.blood_types)
+                            UNION
+                            SELECT UNNEST(h2.blood_types)
+                        ) AS all_types  -- Змінено з "all" на "all_types"
+                    ) AS total_blood_types_count,
+                    
+                    -- Географічні відносини
+                    CASE
+                        WHEN h1.region = h2.region AND h1.city = h2.city THEN 'Одне місто'
+                        WHEN h1.region = h2.region THEN 'Один регіон'
+                        ELSE 'Різні регіони'
+                    END AS geographical_relation
+                FROM 
+                    hospital_blood_types h1
+                JOIN 
+                    hospital_blood_types h2 ON h1.hospital_id < h2.hospital_id
+            )
+            SELECT 
+                *,
+                -- Розрахунок відсотка схожості
+                ROUND((common_blood_types_count * 100.0 / NULLIF(total_blood_types_count, 0)), 1) AS similarity_percent,
+                
+                -- Текстовий перелік спільних груп крові
+                (
+                    SELECT STRING_AGG(bt::text, ', ' ORDER BY bt::text) 
+                    FROM (
+                        SELECT UNNEST(hospital1_blood_types) AS bt
+                        INTERSECT
+                        SELECT UNNEST(hospital2_blood_types) AS bt
+                    ) AS common
+                ) AS common_blood_types,
+                
+                -- Різниця груп крові (є в першій, немає в другій)
+                (
+                    SELECT STRING_AGG(bt::text, ', ' ORDER BY bt::text)
+                    FROM (
+                        SELECT UNNEST(hospital1_blood_types) AS bt
+                        EXCEPT
+                        SELECT UNNEST(hospital2_blood_types) AS bt
+                    ) AS diff
+                ) AS hospital1_unique_types,
+                
+                -- Різниця груп крові (є в другій, немає в першій)
+                (
+                    SELECT STRING_AGG(bt::text, ', ' ORDER BY bt::text)
+                    FROM (
+                        SELECT UNNEST(hospital2_blood_types) AS bt
+                        EXCEPT
+                        SELECT UNNEST(hospital1_blood_types) AS bt
+                    ) AS diff
+                ) AS hospital2_unique_types,
+                
+                -- Опис рівня схожості
+                CASE 
+                    WHEN (common_blood_types_count * 100.0 / NULLIF(total_blood_types_count, 0)) >= 90 THEN 'Надзвичайно висока'
+                    WHEN (common_blood_types_count * 100.0 / NULLIF(total_blood_types_count, 0)) >= 75 THEN 'Дуже висока'
+                    WHEN (common_blood_types_count * 100.0 / NULLIF(total_blood_types_count, 0)) >= 60 THEN 'Висока'
+                    ELSE 'Середня'
+                END AS similarity_level
+            FROM 
+                hospital_pairs
+            WHERE 
+                -- Фільтрація по мінімальному рівню схожості
+                (common_blood_types_count * 100.0 / NULLIF(total_blood_types_count, 0)) >= :min_similarity_percent
+            ORDER BY 
+                similarity_percent DESC,
+                common_blood_types_count DESC,
+                hospital1_requests + hospital2_requests DESC
+            LIMIT :limit
+            """)
+            
+            result = await session.execute(
+                query, 
+                {
+                    "min_similarity_percent": min_similarity_percent,
+                    "min_request_count": min_request_count,
+                    "time_period_months": time_period_months,
+                    "limit": limit
+                }
+            )
+            
+            return [dict(row) for row in result.mappings()]

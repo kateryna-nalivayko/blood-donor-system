@@ -7,6 +7,7 @@ from app.users.dao import UsersDAO
 from app.users.dependencies import get_admin_or_hospital_staff, get_current_hospital_staff, get_current_user
 from app.users.models import User
 from app.hospital.dao import HospitalDAO
+from app.donor.dao import DonorDAO
 
 
 router = APIRouter(prefix='/hospital-staff', tags=['Hospital Staff'])
@@ -126,4 +127,60 @@ async def get_staff_with_matching_patterns(
         min_similarity_percent=query.min_similarity_percent,
         time_period_months=query.time_period_months,
         limit=query.limit
+    )
+
+from fastapi import APIRouter, Depends, Query
+from typing import List, Dict, Any, Optional
+
+
+@router.get("/analytics/doctor-donor-supersets",
+    summary="Find doctors where one's donor set is a superset of another's",
+    response_model=List[Dict[str, Any]])
+async def find_doctors_with_donor_supersets(
+    min_donor_count: int = Query(2, description="Minimum number of donors per doctor"),
+    min_similarity_percent: float = Query(50.0, description="Minimum percentage of shared donors"),
+    specific_hospital_id: Optional[int] = Query(None, description="Filter by specific hospital"),
+    limit: int = Query(50, description="Maximum number of results"),
+    current_staff = Depends(get_current_hospital_staff)
+) -> List[Dict[str, Any]]:
+    """Find pairs of doctors where one doctor's donor set significantly overlaps with another's."""
+    return await HospitalStaffDAO.find_doctors_with_donor_supersets(
+        min_donor_count=min_donor_count,
+        min_similarity_percent=min_similarity_percent,
+        specific_hospital_id=specific_hospital_id,
+        limit=limit
+    )
+
+@router.get("/analytics/hospital-blood-patterns")
+async def find_hospitals_with_similar_blood_request_patterns(
+    min_similarity_percent: float = Query(75.0, description="Minimum similarity percentage"),
+    min_request_count: int = Query(5, description="Minimum number of blood requests per hospital"),
+    time_period_months: int = Query(12, description="Period in months to analyze"),
+    limit: int = Query(50, description="Maximum number of results"),
+    current_staff = Depends(get_current_hospital_staff)
+) -> List[Dict[str, Any]]:
+    """Find pairs of hospitals with similar blood request patterns."""
+    return await HospitalDAO.find_hospitals_with_similar_blood_request_patterns(
+        min_similarity_percent=min_similarity_percent,
+        min_request_count=min_request_count,
+        time_period_months=time_period_months,
+        limit=limit
+    )
+
+@router.get("/analytics/multi-request-donors")
+async def find_donors_matching_multiple_requests(
+    min_match_count: int = Query(2, description="Minimum number of requests a donor can fulfill"),
+    max_distance_km: float = Query(50.0, description="Maximum distance between donor and hospital in km"),
+    region: Optional[str] = Query(None, description="Filter by specific region"),
+    blood_type: Optional[str] = Query(None, description="Filter by specific blood type"),
+    limit: int = Query(50, description="Maximum number of results"),
+    current_staff = Depends(get_current_hospital_staff)
+) -> List[Dict[str, Any]]:
+    """Find donors who can potentially fulfill multiple pending blood requests."""
+    return await DonorDAO.find_donors_matching_multiple_requests(
+        min_match_count=min_match_count,
+        max_distance_km=max_distance_km,
+        region=region,
+        blood_type=blood_type,
+        limit=limit
     )
